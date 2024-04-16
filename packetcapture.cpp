@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <tchar.h>
 #include <WinSock2.h>
+#include <stdint.h>
+#include <time.h>
 
 #pragma comment(lib, "ws2_32")
 
@@ -64,6 +66,7 @@ BOOL LoadNpcapDlls()
 #define HELLO_REQUEST		0x00
 #define CLIENT_HELLO		0x01
 #define SERVER_HELLO		0x02
+#define NEW_SESSION_TICKET	0x04
 #define CERTIFICATE			0x0B
 #define SERVER_KEY_EXCHANGE	0x0C
 #define CERTIFICATE_REQUEST	0x0D
@@ -142,7 +145,7 @@ typedef struct ip_header {
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-typedef struct tcp_header{
+typedef struct tcp_header {
 	u_short		sport;
 	u_short		dport;
 	u_int		seqnum;
@@ -234,19 +237,87 @@ typedef struct alert_proto {
 }alert_proto;
 #pragma pack(pop)
 
+#pragma pack(push, 1)
 typedef struct application_proto {
-	u_char				app_type;
-	u_short				app_version;
-	u_short				app_leng;
-	unsigned char*		app_enc_data;
+	u_char		app_type;
+	u_short		app_version;
+	u_short		app_leng;
+	u_char		app_enc_data[];
 }application_proto;
+#pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct handshake_protocol {
-	u_char		handshake_type;
-	u_short		handshake_length;
-	u_short		handshake_cert_leng;
+	u_int		handshake_type_leng;
+	u_short		handshake_version;
 }handshake_protocol;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct hello_request {
+
+}hello_request;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct client_hello {
+	u_int		ch_gmt;
+	u_char		ch_random_bytes[28];
+}client_hello;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct server_hello {
+
+}server_hello;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct new_session_ticket {
+
+}new_session_ticket;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct certificate {
+
+}certificate;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct server_key_exchange {
+
+}server_key_exchange;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct certificate_request {
+
+}certificate_request;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct server_hello_done {
+
+}server_hello_done;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct certificate_verify {
+
+}certificate_verify;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct client_key_exchange {
+
+}client_key_exchange;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct finished {
+
+}finished;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
@@ -449,7 +520,7 @@ int main()
 
 			int iplen = ih->ip_leng * 4;
 			pk->ip = ih;
-			
+
 			pkt_data = pkt_data + iplen;
 			struct tcp_header* th;
 			th = (tcp_header*)pkt_data;
@@ -464,12 +535,11 @@ int main()
 
 
 			int udplen;
-			
-			
+
+
 			print_tls(rl);
 		}
 	}
-	return 0;
 }
 void print_ether_header(ether_header* data) {
 	struct ether_header* eh;
@@ -639,17 +709,22 @@ void print_tls(record_layer* rl) {
 	print_tcp(pk->tcp, pk->ip);
 	printf("****************** TLSv1.2 Record Layer *****************\n");
 	printf("\n");
-	printf("\n");
 	if (rl->rl_type == CHANGE_CIPHER_SPEC) {
+		ccs_proto* cp;
+		cp = (ccs_proto*)rl;
 		printf("Content Type: Change Cipher Spec (%d)\n", CHANGE_CIPHER_SPEC);
 	}
 	else if (rl->rl_type == ALERT) {
+		alert_proto* ap;
+		ap = (alert_proto*)rl;
 		printf("Content Type: Alert (%d)\n", ALERT);
 	}
 	else if (rl->rl_type == HANDSHAKE) {
 		printf("Content Type: Handshake (%d)\n", HANDSHAKE);
 	}
 	else if (rl->rl_type == APPLICATION_DATA) {
+		application_proto* appli = (application_proto*)malloc(ntohs(rl->rl_length) * sizeof(char));
+		appli = (application_proto*)rl;
 		printf("Content Type: Application data (%d)\n", APPLICATION_DATA);
 	}
 
@@ -668,14 +743,11 @@ void print_tls(record_layer* rl) {
 	printf("Length: %d\n", ntohs(rl->rl_length));
 	printf("\n");
 	if (rl->rl_type == CHANGE_CIPHER_SPEC) {
-		ccs_proto* cp;
-		cp = (ccs_proto*)rl;
 		printf("Change Cipher Spec Message\n");
 	}
 	else if (rl->rl_type == ALERT) {
-		alert_proto* ap;
-		ap = (alert_proto*)pk->tls;
-		if (ap->alert_level == 0x01) {
+		printf("Alert Message: Encrypted Alert\n");
+		/*if (ap->alert_level == 0x01) {
 			printf("WARNING\n");
 		}
 		else if (ap->alert_level == 0x02) {
@@ -714,15 +786,234 @@ void print_tls(record_layer* rl) {
 		}
 		else {
 			printf("UNKNOWN ALERT\n");
-		}
+		}*/
 	}
 	else if (rl->rl_type == APPLICATION_DATA) {
-		application_proto* appli;
+		application_proto* appli = (application_proto*)malloc(ntohs(rl->rl_length) * sizeof(char));
 		appli = (application_proto*)rl;
-		printf("%04X\n", ntohs(appli->app_leng));
-		printf("%02X\n", appli->app_type);
-		printf("%04X\n", ntohs(appli->app_version));
+		printf("Encrypted Application Data: ");
+		for (int i = 0; i < ntohs(appli->app_leng); i++) {
+			printf("%02x", appli->app_enc_data[i]);
+		}
+	}
+	else if (rl->rl_type == HANDSHAKE) {
+		handshake_protocol* hp;
+		hp = (handshake_protocol*)((u_char*)rl + 5);
+		printf("****************** Handshake Type *****************\n");
+		printf("\n");
+		if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == HELLO_REQUEST) {
+			printf("Handshake Type: Hello Request (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			_sleep(10000);
+		}
+		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CLIENT_HELLO) {
+			client_hello* ch;
+			ch = (client_hello*)((u_char*)hp + 6);
+			printf("Handshake Type: Client Hello (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
 
+			_sleep(10000);
+		}
+		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == SERVER_HELLO) {
+			printf("Handshake Type: Server Hello (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			_sleep(10000);
+		}
+		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == NEW_SESSION_TICKET) {
+			printf("Handshake Type: New Session Ticket (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			_sleep(10000);
+		}
+		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CERTIFICATE) {
+			printf("Handshake Type: Certificate (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			_sleep(10000);
+		}
+		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == SERVER_KEY_EXCHANGE) {
+			printf("Handshake Type: Server Key Exchange (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			_sleep(10000);
+		}
+		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CERTIFICATE_REQUEST) {
+			printf("Handshake Type: Certificate Request (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			_sleep(10000);
+		}
+		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == SERVER_HELLO_DONE) {
+			printf("Handshake Type: Server Hello Done (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			_sleep(10000);
+		}
+		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CERTIFICATE_VERIFY) {
+			printf("Handshake Type: Certificate Verify (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			_sleep(10000);
+		}
+		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CLIENT_KEY_EXCHANGE) {
+			printf("Handshake Type: Client Key Exchange (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			_sleep(10000);
+		}
+		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == FINISHED) {
+			printf("Handshake Type: Finished (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
+			printf("\n");
+			printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+			printf("\n");
+			if (ntohs(hp->handshake_version) == TLS_1_0) {
+				printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_1) {
+				printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			else if (ntohs(hp->handshake_version) == TLS_1_2) {
+				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
+				printf("\n");
+			}
+			_sleep(10000);
+		}
 	}
 	printf("\n");
 }
+
