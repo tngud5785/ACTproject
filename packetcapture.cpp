@@ -722,7 +722,7 @@ void print_tls(record_layer* rl) {
 		printf("%04X\n", ntohs(appli->app_leng));
 		printf("%02X\n", appli->app_type);
 		printf("%04X\n", ntohs(appli->app_version));
-	aa
+
 	}
 	printf("\n");
 }
