@@ -28,6 +28,7 @@ BOOL LoadNpcapDlls()
 }
 #endif
 
+#define ETHER_LENGTH		14
 
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -98,7 +99,7 @@ BOOL LoadNpcapDlls()
 #define UNSUPPORTED_CERTIFICATE 0x2B
 #define CERTIFICATE_REVOKE		0x2C
 #define CERTIFICATE_EXPIRED		0x2D
-
+#define UNRECOGNIZED_NAME		0x70
 #pragma pack(push, 1)
 typedef struct mac_address {
 	u_char byte1;
@@ -322,13 +323,14 @@ typedef struct finished {
 
 #pragma pack(push, 1)
 typedef struct packet {
-	ether_header* eh;
-	arp_header* ah;
+	ether_header* eth;
+	arp_header* arp;
 	ip_header* ip;
 	tcp_header* tcp;
 	udp_header* udp;
 	dns_header* dns;
 	tls_header* tls;
+	pcap_pkthdr* header;
 	const unsigned char* app;
 	int tcpCheck;
 	int udpCheck;
@@ -509,10 +511,12 @@ int main()
 
 	while ((res = pcap_next_ex(fp, &header, &pkt_data)) >= 0) {
 		if (res == 0) continue;
-
 		ether_data = pkt_data;
 		if (pkt_data[13] == 0x00) {
-			pk->eh = (struct ether_header*)pkt_data;
+			struct ether_header* eh;
+			eh = (ether_header*)pkt_data;
+			pk->eth = eh;
+
 			pkt_data = pkt_data + 14;
 
 			struct ip_header* ih;
@@ -531,8 +535,8 @@ int main()
 			pkt_data = pkt_data + tcplen;
 			struct record_layer* rl;
 			rl = (record_layer*)pkt_data;
-
-
+			header = (pcap_pkthdr*)header;
+			pk->header = header;
 
 			int udplen;
 
@@ -548,14 +552,15 @@ void print_ether_header(ether_header* data) {
 	u_short ptype;
 	eh = data;
 
+
 	destmac = (mac*)eh;
-	srcmac = (mac*)(eh + 6);
+	srcmac = (mac*)((u_char*)eh + 6);
 	ptype = ntohs(eh->ether_type);
 
 	printf("******************** Ethernet Frame Header ********************\n"); //Ethernet Frame Header
 	printf("\n");
 	printf("\n");
-	printf("Destination : %02x.%02x.%02x.%02x.%02x.%02x \n",
+	printf("Destination : %02x:%02x:%02x:%02x:%02x:%02x \n",
 		destmac->byte1,
 		destmac->byte2,
 		destmac->byte3,
@@ -563,7 +568,7 @@ void print_ether_header(ether_header* data) {
 		destmac->byte5,
 		destmac->byte6);
 	printf("\n");
-	printf("Source : %02x.%02x.%02x.%02x.%02x.%02x \n",
+	printf("Source : %02x:%02x:%02x:%02x:%02x:%02x \n",
 		srcmac->byte1,
 		srcmac->byte2,
 		srcmac->byte3,
@@ -592,7 +597,7 @@ void print_ether_header(ether_header* data) {
 }
 
 void print_ip(ip_header* ip) {
-	print_ether_header(pk->eh);
+	print_ether_header(pk->eth);
 	printf("************************** IP Header **************************\n");
 	printf("\n");
 	printf("\n");
@@ -706,25 +711,38 @@ void print_tcp(tcp_header* tcp, ip_header* ip) {
 }
 
 void print_tls(record_layer* rl) {
+	int sum = 0;
+
+
+	alert_proto* ap;
+	ap = (alert_proto*)rl;
+
+	ccs_proto* cp;
+	cp = (ccs_proto*)rl;
+
+	application_proto* appli = (application_proto*)malloc(ntohs(rl->rl_length) * sizeof(char));
+	appli = (application_proto*)rl;
+
+	handshake_protocol* hp;
+	hp = (handshake_protocol*)((u_char*)rl + 5);
+
+	sum = ETHER_LENGTH + (pk->ip->ip_leng * 4) + (((ntohs(pk->tcp->thl_flags) >> 12) & 0xf) * 4);
+	printf("%d\n", sum);
+	printf("%d\n", pk->header->len);
 	print_tcp(pk->tcp, pk->ip);
+	//while (sum != pk->header->len) {
 	printf("****************** TLSv1.2 Record Layer *****************\n");
 	printf("\n");
 	if (rl->rl_type == CHANGE_CIPHER_SPEC) {
-		ccs_proto* cp;
-		cp = (ccs_proto*)rl;
 		printf("Content Type: Change Cipher Spec (%d)\n", CHANGE_CIPHER_SPEC);
 	}
 	else if (rl->rl_type == ALERT) {
-		alert_proto* ap;
-		ap = (alert_proto*)rl;
 		printf("Content Type: Alert (%d)\n", ALERT);
 	}
 	else if (rl->rl_type == HANDSHAKE) {
 		printf("Content Type: Handshake (%d)\n", HANDSHAKE);
 	}
 	else if (rl->rl_type == APPLICATION_DATA) {
-		application_proto* appli = (application_proto*)malloc(ntohs(rl->rl_length) * sizeof(char));
-		appli = (application_proto*)rl;
 		printf("Content Type: Application data (%d)\n", APPLICATION_DATA);
 	}
 
@@ -747,58 +765,68 @@ void print_tls(record_layer* rl) {
 	}
 	else if (rl->rl_type == ALERT) {
 		printf("Alert Message: Encrypted Alert\n");
-		/*if (ap->alert_level == 0x01) {
-			printf("WARNING\n");
+		if (ap->alert_level == 0x01) {
+			printf("Level: Warning (%d)\n", ap->alert_level);
 		}
 		else if (ap->alert_level == 0x02) {
-			printf("FATAL\n");
+			printf("level: Fatal (%d)\n", ap->alert_level);
 		}
 
 		if (ap->alert_descl == 0x00) {
-			printf("CLOSE_NOTIFY");
+			printf("Description: CLOSE_NOTIFY (%d)\n", ap->alert_descl);
 		}
 		else if (ap->alert_descl == 0x64) {
-			printf("NO_RENEGOTIATION\n");
+			printf("Description: NO_RENEGOTIATION (%d)\n", ap->alert_descl);
 		}
 		else if (ap->alert_descl == 0x0A) {
-			printf("UNEXPECTED_MESSAGE\n");
+			printf("Description: UNEXPECTED_MESSAGE (%d)\n", ap->alert_descl);
 		}
 		else if (ap->alert_descl == 0x14) {
-			printf("BAD_RECORD_MAC\n");
+			printf("Description: BAD_RECORD_MAC (%d)\n", ap->alert_descl);
 		}
 		else if (ap->alert_descl == 0x15) {
-			printf("DECRYPTION_FAILED\n");
+			printf("Description: DECRYPTION_FAILED (%d)\n", ap->alert_descl);
 		}
 		else if (ap->alert_descl == 0x28) {
-			printf("HANDSHAKE_FAILURE\n");
+			printf("Description: HANDSHAKE_FAILURE (%d)\n", ap->alert_descl);
 		}
 		else if (ap->alert_descl == 0x2A) {
-			printf("BAD_CERTIFICATE\n");
+			printf("Description: BAD_CERTIFICATE (%d)\n", ap->alert_descl);
 		}
 		else if (ap->alert_descl == 0x2B) {
-			printf("UNSUPPORTED_CERTIFICATE\n");
+			printf("Description: UNSUPPORTED_CERTIFICATE (%d)\n", ap->alert_descl);
 		}
 		else if (ap->alert_descl == 0x2C) {
-			printf("CERTIFICATE_REVOKE\n");
+			printf("Description: CERTIFICATE_REVOKE (%d)\n", ap->alert_descl);
 		}
 		else if (ap->alert_descl == 0x2D) {
-			printf("CERTIFICATE_EXPIRED\n");
+			printf("Description: CERTIFICATE_EXPIRED (%d)\n", ap->alert_descl);
+		}
+		else if (ap->alert_descl == 0x70) {
+			printf("Description: UNRECOGNIZED_NAME (%d)\n", ap->alert_descl);
 		}
 		else {
-			printf("UNKNOWN ALERT\n");
-		}*/
+			printf("Description: UNKNOWN ALERT (%d)\n", ap->alert_descl);
+		}
 	}
 	else if (rl->rl_type == APPLICATION_DATA) {
-		application_proto* appli = (application_proto*)malloc(ntohs(rl->rl_length) * sizeof(char));
-		appli = (application_proto*)rl;
 		printf("Encrypted Application Data: ");
 		for (int i = 0; i < ntohs(appli->app_leng); i++) {
 			printf("%02x", appli->app_enc_data[i]);
 		}
+		printf("\n");
+		if (appli->app_enc_data[0] == 0x00 && appli->app_enc_data[1] == 0x00 &&
+			appli->app_enc_data[2] == 0x00 && appli->app_enc_data[3] == 0x00) {
+			printf("[Application Data Protocol: HyperText Transfer Protocol 2]\n");
+		}
+		else {
+			printf("[Application Data Protocol: HyperText Transfer Protocol]\n");
+		}
 	}
 	else if (rl->rl_type == HANDSHAKE) {
-		handshake_protocol* hp;
-		hp = (handshake_protocol*)((u_char*)rl + 5);
+		if (ntohs(cp->ccs_leng) == 0x0001 && cp->ccs_message == 0x01 && rl->rl_type == 0x16) {
+			printf("Handshake Protocol: Encrypted Handshake Message\n");
+		}
 		printf("****************** Handshake Type *****************\n");
 		printf("\n");
 		if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == HELLO_REQUEST) {
@@ -818,7 +846,6 @@ void print_tls(record_layer* rl) {
 				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
 				printf("\n");
 			}
-			_sleep(10000);
 		}
 		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CLIENT_HELLO) {
 			client_hello* ch;
@@ -839,8 +866,6 @@ void print_tls(record_layer* rl) {
 				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
 				printf("\n");
 			}
-
-			_sleep(10000);
 		}
 		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == SERVER_HELLO) {
 			printf("Handshake Type: Server Hello (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
@@ -859,7 +884,6 @@ void print_tls(record_layer* rl) {
 				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
 				printf("\n");
 			}
-			_sleep(10000);
 		}
 		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == NEW_SESSION_TICKET) {
 			printf("Handshake Type: New Session Ticket (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
@@ -878,7 +902,6 @@ void print_tls(record_layer* rl) {
 				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
 				printf("\n");
 			}
-			_sleep(10000);
 		}
 		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CERTIFICATE) {
 			printf("Handshake Type: Certificate (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
@@ -897,7 +920,6 @@ void print_tls(record_layer* rl) {
 				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
 				printf("\n");
 			}
-			_sleep(10000);
 		}
 		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == SERVER_KEY_EXCHANGE) {
 			printf("Handshake Type: Server Key Exchange (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
@@ -916,7 +938,6 @@ void print_tls(record_layer* rl) {
 				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
 				printf("\n");
 			}
-			_sleep(10000);
 		}
 		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CERTIFICATE_REQUEST) {
 			printf("Handshake Type: Certificate Request (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
@@ -935,7 +956,6 @@ void print_tls(record_layer* rl) {
 				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
 				printf("\n");
 			}
-			_sleep(10000);
 		}
 		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == SERVER_HELLO_DONE) {
 			printf("Handshake Type: Server Hello Done (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
@@ -954,7 +974,6 @@ void print_tls(record_layer* rl) {
 				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
 				printf("\n");
 			}
-			_sleep(10000);
 		}
 		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CERTIFICATE_VERIFY) {
 			printf("Handshake Type: Certificate Verify (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
@@ -973,7 +992,6 @@ void print_tls(record_layer* rl) {
 				printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->handshake_version));
 				printf("\n");
 			}
-			_sleep(10000);
 		}
 		else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CLIENT_KEY_EXCHANGE) {
 			printf("Handshake Type: Client Key Exchange (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
@@ -1013,6 +1031,7 @@ void print_tls(record_layer* rl) {
 			}
 			_sleep(10000);
 		}
+		//}
 	}
 	printf("\n");
 }
