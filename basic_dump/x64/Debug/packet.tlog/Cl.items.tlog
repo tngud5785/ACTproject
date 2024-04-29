@@ -1,0 +1,6 @@
+C:\projects\packetcapture\packetcapture\basic_dump\main.cpp;C:\projects\packetcapture\packetcapture\basic_dump\x64\Debug\main.obj
+C:\projects\packetcapture\packetcapture\basic_dump\ether_source.cpp;C:\projects\packetcapture\packetcapture\basic_dump\x64\Debug\ether_source.obj
+C:\projects\packetcapture\packetcapture\basic_dump\ip_source.cpp;C:\projects\packetcapture\packetcapture\basic_dump\x64\Debug\ip_source.obj
+C:\projects\packetcapture\packetcapture\basic_dump\struct.cpp;C:\projects\packetcapture\packetcapture\basic_dump\x64\Debug\struct.obj
+C:\projects\packetcapture\packetcapture\basic_dump\tcp_source.cpp;C:\projects\packetcapture\packetcapture\basic_dump\x64\Debug\tcp_source.obj
+C:\projects\packetcapture\packetcapture\basic_dump\tls_source.cpp;C:\projects\packetcapture\packetcapture\basic_dump\x64\Debug\tls_source.obj

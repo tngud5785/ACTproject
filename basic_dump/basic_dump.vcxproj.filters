@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="tcp_source.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="tls_source.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="ether_source.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="ip_source.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+    <ClCompile Include="struct.cpp">
+      <Filter>source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="header">
+      <UniqueIdentifier>{a8825cb4-f88b-4d76-b4c3-780de790c89a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="source">
+      <UniqueIdentifier>{83624dae-64ec-4b58-b387-53f2c91fce85}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="struct.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="tcp_header.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="tls_header.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="ether_header.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="ip_header.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="define.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="include.h">
+      <Filter>header</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
