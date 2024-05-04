@@ -26,6 +26,13 @@ typedef struct alert_proto {
 #pragma pack(pop)
 
 #pragma pack(push, 1)
+typedef struct alert_proto_enc {
+	TLSHeader	tls_header;
+	u_char		alert_enc[];
+}AlertEnc;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
 typedef struct application_proto {
 	TLSHeader	tls_header;
 	u_char		app_enc_data[];

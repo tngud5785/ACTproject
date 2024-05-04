@@ -707,22 +707,22 @@ void print_ip(ip_header* ip) {
 					printf("Router Alert: Router shall examine packet (%d)\n", data);
 				}
 				else if (data >= 1 && data <= 32) {
-					printf("Router Alert: Aggregated Reservation Nesting Level (%d)\n");
+					printf("Router Alert: Aggregated Reservation Nesting Level (%d)\n", data);
 				}
 				else if (data >= 33 && data <= 64) {
-					printf("Router Alert: QoS NSLP Aggregation Levels %d (%d)\n", data);
+					printf("Router Alert: QoS NSLP Aggregation Levels 0-31 (%d)\n", data);
 				}
 				else if (data == 65) {
-					printf("Router Alert: NSIS NATFW NSLP\n");
+					printf("Router Alert: NSIS NATFW NSLP (%d)\n", data);
 				}
 				else if (data >= 65503 && data <= 65534) {
-					printf("Router Alert: Reserved for experimental use (%d)\n");
+					printf("Router Alert: Reserved for experimental use (%d)\n", data);
 				}
 				else if (data == 65535) {
-					printf("Router Alert: Reserved (%d)\n");
+					printf("Router Alert: Reserved (%d)\n", data);
 				}
 				else {
-					printf("Router Alert: Unassigned (%d)\n");
+					printf("Router Alert: Unassigned (%d)\n", data);
 				}
 				printf("\n");
 				printf("Type: %d\n", iho->option_copy_class_number);

@@ -87,18 +87,39 @@
 #define TLS_1_2 0x0303
 
 //alert protocol Ω≈»£
-#define CLOSE_NOTIFY		 0x00
-#define NO_RENEGOTIATION	 0x64
-#define UNEXPECTED_MESSAGE	 0x0A
-#define BAD_RECORD_MAC		 0x14
-#define DECRYPTION_FAILED	 0x15
-#define HANDSHAKE_FAILURE	 0x28
-#define BAD_CERTIFICATE		 0x2A
-#define UNSUPPORTED_CERTIFICATE 0x2B
-#define CERTIFICATE_REVOKE		0x2C
-#define CERTIFICATE_EXPIRED		0x2D
-#define UNRECOGNIZED_NAME		0x70
-
+#define CLOSE_NOTIFY                  0x00  // Close notify
+#define UNEXPECTED_MESSAGE            0x0A  // Unexpected message
+#define BAD_RECORD_MAC                0x14  // Bad record MAC
+#define DECRYPTION_FAILED             0x15  // Decryption failed (reserved)
+#define RECORD_OVERFLOW               0x16  // Record overflow
+#define DECOMPRESSION_FAILURE         0x1E  // Decompression failure
+#define HANDSHAKE_FAILURE             0x28  // Handshake failure
+#define NO_CERTIFICATE                0x29  // No certificate (SSL 3.0 only, reserved)
+#define BAD_CERTIFICATE               0x2A  // Bad certificate
+#define UNSUPPORTED_CERTIFICATE       0x2B  // Unsupported certificate
+#define CERTIFICATE_REVOKED           0x2C  // Certificate revoked
+#define CERTIFICATE_EXPIRED           0x2D  // Certificate expired
+#define CERTIFICATE_UNKNOWN           0x2E  // Certificate unknown
+#define ILLEGAL_PARAMETER             0x2F  // Illegal parameter
+#define UNKNOWN_CA                    0x30  // Unknown CA (Certificate authority)
+#define ACCESS_DENIED                 0x31  // Access denied
+#define DECODE_ERROR                  0x32  // Decode error
+#define DECRYPT_ERROR                 0x33  // Decrypt error
+#define EXPORT_RESTRICTION            0x3C  // Export restriction (reserved)
+#define PROTOCOL_VERSION              0x46  // Protocol version
+#define INSUFFICIENT_SECURITY         0x47  // Insufficient security
+#define INTERNAL_ERROR                0x50  // Internal error
+#define INAPPROPRIATE_FALLBACK        0x56  // Inappropriate fallback
+#define USER_CANCELED                 0x5A  // User canceled
+#define NO_RENEGOTIATION              0x64  // No renegotiation
+#define UNSUPPORTED_EXTENSION         0x6E  // Unsupported extension
+#define CERTIFICATE_UNOBTAINABLE      0x6F  // Certificate unobtainable
+#define UNRECOGNIZED_NAME             0x70  // Unrecognized name
+#define BAD_CERTIFICATE_STATUS_RESPONSE 0x71 // Bad certificate status response
+#define BAD_CERTIFICATE_HASH_VALUE    0x72  // Bad certificate hash value
+#define UNKNOWN_PSK_IDENTITY          0x73  // Unknown PSK identity
+#define CERTIFICATE_REQUIRED          0x74  // Certificate required (TLS 1.3 only)
+#define NO_APPLICATION_PROTOCOL       0x78  // No application protocol (TLS 1.3 only)
 //cipher suite 
 #define Reserved(GREASE)								0x7a7a
 #define TLS_AES_128_GCM_SHA256							0x1301

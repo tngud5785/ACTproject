@@ -49,4 +49,13 @@ void print_ether_header(ether_header* eh) {
 		printf("Type: Unknown(0x%04x)\n", ptype);
 	}
 	printf("\n");
+
+	if (pk->header->len <= 60 && pk->header->len > 54) {
+		printf("%d", pk->header->len - ETHER_LENGTH - ntohs(pk->ip->tlen));
+		for (int i = 1; i <= pk->header->len - ETHER_LENGTH - ntohs(pk->ip->tlen); i++) {
+			printf("00");
+		}
+		printf("\n");
+	}
+	printf("\n");
 }
