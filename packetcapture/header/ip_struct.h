@@ -28,6 +28,13 @@ typedef struct ip_header {
 }IpHeader;
 #pragma pack(pop)
 
+typedef struct ip_header_option {
+	IpHeader	option_ip_header;
+	u_char		option_copy_class_number;
+	u_char		option_length;
+	u_short		option_data;
+};
+
 
 
 

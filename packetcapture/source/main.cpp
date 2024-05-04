@@ -98,7 +98,7 @@ int main()
 	printf("3:RARP\n");
 	printf("5:ALL\n");
 	printf("--------------------------------------------------------\n");
-	printf("번호 : (1-4) : ");
+	printf("번호 : (1-5) : ");
 
 	scanf("%d", &inum1);
 
@@ -130,7 +130,7 @@ int main()
 		printf("2:DHCP\n");
 		printf("3:ALL(UDP)\n");
 		printf("--------------------------------------------------------\n");
-		printf("번호 : (1-9) : ");
+		printf("번호 : (1-3) : ");
 		scanf("%d", &inum2);
 	}
 	else if (inum1 == 3) {
@@ -173,17 +173,17 @@ int main()
 		 * we suppose to be in a C class network */
 		netmask = 0xffffff;
 
-	if (pcap_compile(fp, &fcode, packet_filter, 1, netmask) < 0) {
-		fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
-		pcap_freealldevs(alldevs);
-		return -1;
-	}
+	//if (pcap_compile(fp, &fcode, packet_filter, 1, netmask) < 0) { // 위에서 적은 packet_filter로 원하는 패킷만 캡처가능
+	//	fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
+	//	pcap_freealldevs(alldevs);
+	//	return -1;
+	//}
 
-	if (pcap_setfilter(fp, &fcode) < 0) {
-		fprintf(stderr, "\nError setting the filter.\n");
-		pcap_freealldevs(alldevs);
-		return -1;
-	}
+	//if (pcap_setfilter(fp, &fcode) < 0) { //필터 적용
+	//	fprintf(stderr, "\nError setting the filter.\n");
+	//	pcap_freealldevs(alldevs);
+	//	return -1;
+	//}
 
 	pcap_freealldevs(alldevs);
 
@@ -217,7 +217,7 @@ int main()
 			int udplen;
 			
 			
-			print_tls(ether_data);
+			print_ip(pk->ip);
 		}
 	}
 }

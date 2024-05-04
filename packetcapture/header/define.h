@@ -27,32 +27,33 @@
 #define SYN_ACK		0x12
 #define PUSH_ACK	0x18
 
-//#define EOOL	0x00            // End of Options List
-//#define NOP		0x01            // No Operation
-//#define SEC		0x82            // Security
-//#define LSR		0x83            // Loose Source Route
-//#define TS		0x44            // Time Stamp
-//#define E_SEC	0x85			// Extended Security
-//#define CIPSO	0x86            // Commercial Security
-//#define RR		0x07            // Record Route
-//#define SID		0x88            // Stream ID
-//#define SSR		0x89            // Strict Source Route
-//#define ZSU		0x0A            // Experimental Measurement
-//#define MTUP	0x0B            // MTU Probe
-//#define MTUR	0x0C            // MTU Reply
-//#define FINN	0xCD            // Experimental Flow Control
-//#define VISA	0x8E            // Experimental Access Control
-//#define ENCODE	0x0F            // Unknown
-//#define IMITD	0x90            // IMI Traffic Descriptor
-//#define EIP		0x91            // Extended Internet Protocol
-//#define TR		0x52            // Traceroute
-//#define ADDEXT	0x93            // Address Extension
-//#define RTRALT	0x94            // Router Alert
-//#define SDB		0x95            // Selective Directed Broadcast
-//#define DPS		0x97            // Dynamic Packet State
-//#define UMP		0x98            // Upstream Multicast Packet
-//#define QS		0x19            // Quick-Start
-//#define EXP		0x1E            // RFC3692-style Experiment
+#define EOOL	0x00            // End of Options List
+#define NOP		0x01            // No Operation
+#define SEC		0x82            // Security
+#define LSR		0x83            // Loose Source Route
+#define TS		0x44            // Time Stamp
+#define E_SEC	0x85			// Extended Security
+#define CIPSO	0x86            // Commercial Security
+#define RR		0x07            // Record Route
+#define STID	0x88            // Stream ID
+#define SSR		0x89            // Strict Source Route
+#define ZSU		0x0A            // Experimental Measurement
+#define MTUP	0x0B            // MTU Probe
+#define MTUR	0x0C            // MTU Reply
+#define FINN	0xCD            // Experimental Flow Control
+#define VISA	0x8E            // Experimental Access Control
+#define ENCODE	0x0F            // Unknown
+#define IMITD	0x90            // IMI Traffic Descriptor
+#define EIP		0x91            // Extended Internet Protocol
+#define TR		0x52            // Traceroute
+#define ADDEXT	0x93            // Address Extension
+#define RTRALT	0x94            // Router Alert
+#define SDB		0x95            // Selective Directed Broadcast
+#define UNA		0x96
+#define DPS		0x97            // Dynamic Packet State
+#define UMP		0x98            // Upstream Multicast Packet
+#define QS		0x19            // Quick-Start
+#define EXP		0x1E            // RFC3692-style Experiment
 
 //record content type
 #define CHANGE_CIPHER_SPEC 0x14
