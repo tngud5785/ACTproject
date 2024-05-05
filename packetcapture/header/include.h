@@ -5,3 +5,4 @@
 #include <stdlib.h>
 #include <tchar.h>
 #include <WinSock2.h>
+#include <stdint.h>

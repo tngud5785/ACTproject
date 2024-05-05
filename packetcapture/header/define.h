@@ -120,6 +120,8 @@
 #define UNKNOWN_PSK_IDENTITY          0x73  // Unknown PSK identity
 #define CERTIFICATE_REQUIRED          0x74  // Certificate required (TLS 1.3 only)
 #define NO_APPLICATION_PROTOCOL       0x78  // No application protocol (TLS 1.3 only)
+
+
 //cipher suite 
 #define Reserved(GREASE)								0x7a7a
 #define TLS_AES_128_GCM_SHA256							0x1301
@@ -146,35 +148,88 @@
 #define TLS_RSA_WITH_AES_256_CBC_SHA					0x0035
 #define TLS_RSA_WITH_AES_128_CBC_SHA					0x002f
 
+
+//signature algorithms
+#define rsa_pkcs1_sha256        0x0401
+#define rsa_pkcs1_sha384        0x0501
+#define rsa_pkcs1_sha512        0x0601
+#define ecdsa_secp256r1_sha256  0x0403
+#define ecdsa_secp384r1_sha384  0x0503
+#define ecdsa_secp521r1_sha512  0x0603
+#define rsa_pss_rsae_sha256     0x0804
+#define rsa_pss_rsae_sha384     0x0805
+#define rsa_pss_rsae_sha512     0x0806
+#define ed25519                 0x0807
+#define ed448                   0x0808
+#define rsa_pss_pss_sha256      0x0809
+#define rsa_pss_pss_sha384      0x080a
+#define rsa_pss_pss_sha512      0x080b
+#define rsa_pkcs1_sha1          0x0201
+#define ecdsa_sha1              0x0203
+
+
+//signature hash algorithm hash
+#define SHAH_anonymous               0
+#define SHAH_rsa                     1
+#define SHAH_dsa                     2
+#define SHAH_ecdsa                   3
+#define SHAH_ed25519                 7
+#define SHAH_ed448                   8
+#define SHAH_gostr34102012_256       64
+#define SHAH_gostr34102012_512       65
+//나머지는 reserved처리
+
+
+//signature hash algorithm signature
+#define SHAS_none        0
+#define SHAS_md5         1
+#define SHAS_sha1        2
+#define SHAS_sha224      3
+#define SHAS_sha256      4
+#define SHAS_sha384      5
+#define SHAS_sha512      6
+#define SHAS_reserved    7 // unknown 처리
+#define SHAS_Intrinsic   8 // unknown 처리
+//나머지 reserved처리
+
 //extension
-#define SERVER_NAME 0
+#define SERVER_NAME 0 // o 0번 host
 #define MAX_FRAGMENT_LENGTH 1
 #define CLIENT_CERTIFICATE_URL 2
 #define TRUSTED_CA_KEYS 3
 #define TRUNCATED_HMAC 4
-#define STATUS_REQUEST 5
+#define STATUS_REQUEST 5 // o 1번 OCSP
 #define USER_MAPPING 6
 #define CLIENT_AUTHZ 7
 #define SERVER_AUTHZ 8
 #define CERT_TYPE 9
-#define SUPPORTED_GROUPS 10
-#define EC_POINT_FORMATS 11
+#define SUPPORTED_GROUPS 10 // o deprecated(1..22),
+                           /*secp256r1 (23), secp384r1 (24), secp521r1 (25),
+                           x25519(29), x448(30),
+                           reserved (0xFE00..0xFEFF),
+                           deprecated(0xFF01..0xFF02),*/
+#define EC_POINT_FORMATS 11 // o 0번 uncompressed, 1,2번 deprecated, 248부터 255번 reserved
 #define SRP 12
-#define SIGNATURE_ALGORITHMS 13
+#define SIGNATURE_ALGORITHMS 13 // o
 #define USE_SRTP 14
 #define HEARTBEAT 15
-#define APPLICATION_LAYER_PROTOCOL_NEGOTIATION 16
+#define APPLICATION_LAYER_PROTOCOL_NEGOTIATION 16 // o
 #define STATUS_REQUEST_V2 17
-#define SIGNED_CERTIFICATE_TIMESTAMP 18
+#define SIGNED_CERTIFICATE_TIMESTAMP 18 // o
 #define CLIENT_CERTIFICATE_TYPE 19
 #define SERVER_CERTIFICATE_TYPE 20
-#define PADDING 21
-#define ENCRYPT_THEN_MAC 22
-#define EXTENDED_MASTER_SECRET 23
+#define PADDING 21 // o
+#define ENCRYPT_THEN_MAC 22 // o
+#define EXTENDED_MASTER_SECRET 23 // o
 #define TOKEN_BINDING 24
 #define CACHED_INFO 25
 #define TLS_LTS 26
-#define COMPRESS_CERTIFICATE 27
+#define COMPRESS_CERTIFICATE 27 //o 0	Reserved	[RFC8879]
+                                //1	zlib[RFC8879]
+                                //2	brotli[RFC8879]
+                                //3	zstd[RFC8879]
+                                //4 - 16383	Unassigned
+                                //16384 - 65535	Reserved for Experimental Use[RFC8879]
 #define RECORD_SIZE_LIMIT 28
 #define PWD_PROTECT 29
 #define PWD_CLEAR 30
@@ -182,31 +237,35 @@
 #define TICKET_PINNING 32
 #define TLS_CERT_WITH_EXTERN_PSK 33
 #define DELEGATED_CREDENTIAL 34
-#define SESSION_TICKET 35
+#define SESSION_TICKET 35 // o
 #define TLMSP 36
 #define TLMSP_PROXYING 37
 #define TLMSP_DELEGATE 38
 #define SUPPORTED_EKT_CIPHERS 39
 #define RESERVED_40 40
-#define PRE_SHARED_KEY 41
+#define PRE_SHARED_KEY 41 // o
 #define EARLY_DATA 42
 #define SUPPORTED_VERSIONS 43
 #define COOKIE 44
-#define PSK_KEY_EXCHANGE_MODES 45
+#define PSK_KEY_EXCHANGE_MODES 45/* o   0	psk_ke	Y	[RFC8446]
+                                        1	psk_dhe_ke	Y[RFC8446]
+                                        2 - 253	Unassigned
+                                        254 - 255	Reserved for Private Use[RFC8446]*/
 #define RESERVED_46 46
 #define CERTIFICATE_AUTHORITIES 47
 #define OID_FILTERS 48
 #define POST_HANDSHAKE_AUTH 49
 #define SIGNATURE_ALGORITHMS_CERT 50
-#define KEY_SHARE 51
+#define KEY_SHARE 51 // o
 #define TRANSPARENCY_INFO 52
 #define CONNECTION_ID_DEPRECATED 53
 #define CONNECTION_ID 54
 #define EXTERNAL_ID_HASH 55
 #define EXTERNAL_SESSION_ID 56
-#define QUIC_TRANSPORT_PARAMETERS 57
+//#define QUIC_TRANSPORT_PARAMETERS 57
 #define TICKET_REQUEST 58
 #define DNSSEC_CHAIN 59
 #define SEQUENCE_NUMBER_ENCRYPTION_ALGORITHMS 60
 #define RRC 61
 #define UNASSIGNED_62_TO_2569 62  // 62부터 2569까지 할당되지 않은 값들을 표현
+#define ENCRYPTED_CLIENT_HELLO 65037
