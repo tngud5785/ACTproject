@@ -99,6 +99,13 @@ typedef struct client_hello_extensions {
 #pragma pack(pop)
 
 #pragma pack(push, 1)
+typedef struct extensions_type_length {
+	u_short			extensions_type;
+	u_short			extensions_length;
+} ExtensionsTypeLength;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
 typedef struct server_name {
 	ClientHelloExtensions	client_hello_extensions;
 	u_short					server_name_list_length;
@@ -111,31 +118,24 @@ typedef struct server_name {
 #pragma pack(push, 1)
 typedef struct max_fragment_length {
 	ClientHelloExtensions	client_hello_extensions;
-	u_short					max_frag_leng;
 } MaxFragmentLength;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct client_certificate_url {
 	ClientHelloExtensions	client_hello_extensions;
-	u_short					client_certificate_url_length;
-	u_char					client_cert_url;
 } ClientCertificateURL;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct trusted_ca_keys {
 	ClientHelloExtensions	client_hello_extensions;
-	u_short					trusted_ca_keys_length;
-	u_char					trust_ca_keys;
 } TrustedCAKeys;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct truncated_hmac {
 	ClientHelloExtensions	client_hello_extensions;
-	u_short					trun_hmac_length;
-	u_char					trun_hmac;
 } TruncatedHMAC;
 #pragma pack(pop)
 
@@ -151,32 +151,24 @@ typedef struct status_request {
 #pragma pack(push, 1)
 typedef struct user_mapping {
 	ClientHelloExtensions	client_hello_extensions;
-	u_short					user_map_length;
-	u_char					user_map;
 } UserMapping;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct client_authz {
 	ClientHelloExtensions	client_hello_extensions;
-	u_short					cli_authz_length;
-	u_char					cli_authz;
 } ClientAuthz;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct server_authz {
 	ClientHelloExtensions	client_hello_extensions;
-	u_short					ser_authz_length;
-	u_char					ser_authz;
 } ServerAuthz;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct cert_type {
 	ClientHelloExtensions	client_hello_extensions;
-	u_short					ce_type_length;
-	u_char					ce_type;
 } CertType;
 #pragma pack(pop)
 

@@ -148,6 +148,15 @@
 #define TLS_RSA_WITH_AES_256_CBC_SHA					0x0035
 #define TLS_RSA_WITH_AES_128_CBC_SHA					0x002f
 
+#define TLS_DHE_RSA_WITH_AES_256_GCM_SHA384             0x009f
+#define TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256       0xccaa
+#define TLS_DHE_RSA_WITH_AES_128_GCM_SHA256             0x009e
+#define TLS_DHE_RSA_WITH_AES_256_CBC_SHA256             0x006b
+#define TLS_DHE_RSA_WITH_AES_128_CBC_SHA256             0x0067
+#define TLS_DHE_RSA_WITH_AES_256_CBC_SHA                0x0039
+#define TLS_DHE_RSA_WITH_AES_128_CBC_SHA                0x0033
+#define TLS_EMPTY_RENEGOTIATION_INFO_SCSV               0x00ff
+
 
 //signature algorithms
 #define rsa_pkcs1_sha256        0x0401
@@ -208,6 +217,8 @@
                            x25519(29), x448(30),
                            reserved (0xFE00..0xFEFF),
                            deprecated(0xFF01..0xFF02),*/
+
+
 #define EC_POINT_FORMATS 11 // o 0번 uncompressed, 1,2번 deprecated, 248부터 255번 reserved
 #define SRP 12
 #define SIGNATURE_ALGORITHMS 13 // o
