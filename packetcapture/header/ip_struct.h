@@ -33,7 +33,7 @@ typedef struct ip_header_option {
 	u_char		option_copy_class_number;
 	u_char		option_length;
 	u_short		option_data;
-};
+} IpHeaderOption;
 
 
 

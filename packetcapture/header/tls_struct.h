@@ -33,6 +33,13 @@ typedef struct alert_proto_enc {
 #pragma pack(pop)
 
 #pragma pack(push, 1)
+typedef struct handshake_proto {
+	TLSHeader		tls_header;
+	u_int			handshake_type_leng;
+}Handshake;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
 typedef struct application_proto {
 	TLSHeader	tls_header;
 	u_char		app_enc_data[];
@@ -40,22 +47,15 @@ typedef struct application_proto {
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-typedef struct handshake_protocol {
-	TLSHeader	tls_header;
-	u_int		handshake_type_leng;
-	u_short		handshake_version;
-}TLSHandshake;
-#pragma pack(pop)
-
-#pragma pack(push, 1)
 typedef struct hello_request {
-
+	TLSHeader	tls_header;
 }HelloRequest;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct client_hello {
-	TLSHandshake	handshake_header;
+	Handshake		handshake_header;
+	u_short			client_hello_version;
 	u_char			ch_random_bytes[32];
 }ClientHello;
 #pragma pack(pop)
@@ -107,7 +107,7 @@ typedef struct extensions_type_length {
 
 #pragma pack(push, 1)
 typedef struct server_name {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					server_name_list_length;
 	u_char					server_name_type;
 	u_short					server_name_length;
@@ -117,31 +117,31 @@ typedef struct server_name {
 
 #pragma pack(push, 1)
 typedef struct max_fragment_length {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } MaxFragmentLength;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct client_certificate_url {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } ClientCertificateURL;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct trusted_ca_keys {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } TrustedCAKeys;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct truncated_hmac {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } TruncatedHMAC;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct status_request {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_char					status_type;
 	u_short					responder_id_list_length;
 	u_short					request_extensions_length;
@@ -150,31 +150,31 @@ typedef struct status_request {
 
 #pragma pack(push, 1)
 typedef struct user_mapping {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } UserMapping;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct client_authz {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } ClientAuthz;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct server_authz {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } ServerAuthz;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct cert_type {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } CertType;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct supported_groups {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					sup_groups_list_length;
 	u_short					sup_groups[];
 } SupportedGroups;
@@ -182,7 +182,7 @@ typedef struct supported_groups {
 
 #pragma pack(push, 1)
 typedef struct ec_point_formats {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_char					ec_point_formats_length;
 	u_char					ec_point_format;
 } ECPointFormats;
@@ -190,7 +190,7 @@ typedef struct ec_point_formats {
 
 #pragma pack(push, 1)
 typedef struct srp{
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					srp_length;
 	u_char					_srp;
 } ExtentsionSRP;
@@ -198,7 +198,7 @@ typedef struct srp{
 
 #pragma pack(push, 1)
 typedef struct signature_algorithms {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					signature_hash_algorithms_length;
 	u_short					signature_hash_algorithms[];
 } SignatureAlgorithms;
@@ -206,7 +206,7 @@ typedef struct signature_algorithms {
 
 #pragma pack(push, 1)
 typedef struct use_srtp {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					use_srtp_length;
 	u_char					_use_srtp;
 } UseSrtp;
@@ -214,7 +214,7 @@ typedef struct use_srtp {
 
 #pragma pack(push, 1)
 typedef struct heartbeat {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					heartbeat_length;
 	u_char					_heartbeat;
 } Heartbeat;
@@ -222,7 +222,7 @@ typedef struct heartbeat {
 
 #pragma pack(push, 1)
 typedef struct application_layer_protocol_negotiation {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					alpn_extension_length;
 	u_char					alpn_string_length;
 	u_char					alpn_next_protocol[]; // ascii
@@ -231,7 +231,7 @@ typedef struct application_layer_protocol_negotiation {
 
 #pragma pack(push, 1)
 typedef struct status_request_v2 {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					status_request_v2_length;
 	u_char					_status_request_v2;
 } StatusRequestV2;
@@ -239,13 +239,13 @@ typedef struct status_request_v2 {
 
 #pragma pack(push, 1)
 typedef struct signed_certificate_timestamp {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } SignedCertificateTimestamp;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct client_certificate_type {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					client_certificate_type_length;
 	u_char					_client_certificate_type;
 } ClientCertificateType;
@@ -253,7 +253,7 @@ typedef struct client_certificate_type {
 
 #pragma pack(push, 1)
 typedef struct server_certificate_type {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					server_certificate_type_length;
 	u_char					_server_certificate_type;
 } ServerCertificateType;
@@ -261,130 +261,128 @@ typedef struct server_certificate_type {
 
 #pragma pack(push, 1)
 typedef struct padding {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_char					padding_data[];
 } Padding;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct encrypt_then_mac {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } EncryptThenMac;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct extended_master_secret {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } ExtendedMasterSecret;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct token_binding {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } TokenBinding;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct cached_info {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } CachedInfo;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct tls_lts {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } TlsLts;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct compress_certificate {
-	ClientHelloExtensions	client_hello_extensions;
-	u_char					algorithms_length;
-	u_short					algorithm;
+	ExtensionsTypeLength	extensions_type_length;
 } CompressCertificate;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct record_size_limit {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } RecordSizeLimit;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct pwd_protect {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } PwdProtect;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct pwd_clear {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } PwdClear;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct password_salt {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } PasswordSalt;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct ticket_pinning {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } TicketPinning;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct tls_cert_with_extern_psk {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } TlsCertWithExternPsk;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct delegated_credential {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } DelegatedCredential;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct session_ticket {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_char					session_ticket_data[];
 } SessionTicket;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct tlmsp {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } Tlsmp;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct tlmsp_proxying {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } TlmspProxying;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct tlmsp_delegate {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } TlmspDelegate;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct supported_ekt_ciphers {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } SupportedEktCiphers;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct reserved_40 {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } Reserved_40;
 #pragma pack(pop)
 
 typedef struct pre_shared_key{
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					identities_length;
 	u_short					identity_length;
 	u_char					idnetity;
@@ -396,13 +394,13 @@ typedef struct pre_shared_key{
 
 #pragma pack(push, 1)
 typedef struct early_data{
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } EarlyData;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct supported_versions {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					supported_versions_length;
 	u_short					supported_version[];
 } SupportedVersions;
@@ -410,7 +408,7 @@ typedef struct supported_versions {
 
 #pragma pack(push, 1)
 typedef struct cookie {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_short					cookie_length;
 	u_char					cookie_data[];
 } Cookie;
@@ -418,50 +416,49 @@ typedef struct cookie {
 
 #pragma pack(push, 1)
 typedef struct psk_key_exchange_modes {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } PskKeyExchangeModes;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct reserved_46 {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } Reserved_46;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct certificate_authorities {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } CertificateAuthorities;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct oid_filters {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } OidFilters;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct post_handshake_auth {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } PostHandshakeAuth;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct signature_algorithms_cert {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } SignatureAlgorithmsCert;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct key_share {
-	ClientHelloExtensions	client_hello_extensions;
-	u_short					client_key_share_length;
+	ExtensionsTypeLength	extensions_type_length;
 } KeyShare;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct key_share_entry {
-	key_share		key_shard;
+	key_share		key_share;
 	u_short			key_share_group;
 	u_short			key_exchange_length;
 	u_char			key_exchange[];
@@ -470,73 +467,67 @@ typedef struct key_share_entry {
 
 #pragma pack(push, 1)
 typedef struct transparency_info {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } TransparencyInfo;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct connection_id_deprecated {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } ConnectionIdDeprecated;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct connection_id {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } ConnectionId;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct external_id_hash {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } ExternalIdHash;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct external_session_id {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } ExternalSessionId;
 #pragma pack(pop)
 
 //#pragma pack(push, 1)
 //typedef struct quic_transport_parameters {
-//	ClientHelloExtensions	client_hello_extensions;
+//	ExtensionsTypeLength	extensions_type_length;
 //} QuicTransportParameters;
 //#pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct ticket_request {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } TicketRequest;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct dnssec_chain {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } DnssecChain;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct sequence_number_encryption_algortithms {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } SequenceNumberEncryptionAlgortithms;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct rrc {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 } Rrc;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-typedef struct unassigned {
-	ClientHelloExtensions	client_hello_extensions;
-} Unassigned;
-#pragma pack(pop)
-
-#pragma pack(push, 1)
 typedef struct encrypted_client_hello {
-	ClientHelloExtensions	client_hello_extensions;
+	ExtensionsTypeLength	extensions_type_length;
 	u_char					client_hello_type; // 0Àº outer, 1Àº inner
 	u_int					cipher_suite;
 	u_char					config_id;
@@ -576,17 +567,45 @@ typedef struct new_session_ticket {
 }NewSessionTicket;
 #pragma pack(pop)
 
+
+//handshake-certificate
 #pragma pack(push, 1)
 typedef struct certificate {
+	TLSHeader		tls_header;
 
 }Certificate;
 #pragma pack(pop)
 
+
+
+
+
+//handshake-serverkeyexchange
 #pragma pack(push, 1)
 typedef struct server_key_exchange {
-
+	TLSHeader	tls_header;
 }ServerKeyExchange;
 #pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct ec_diffie_hellman_client_params {
+	u_char			curve_type;
+	u_short			named_curve;
+	u_char			pubkey_length;
+	u_char			pubkey[];
+}ECDiffieHellmanClientParams;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct signature_algorithm {
+	u_char			sign_hash_algo_hash;
+	u_char			sign_hash_algo_sign;
+	u_short			sign_length;
+	u_char			signature[];
+}SignatureAlgorithm;
+#pragma pack(pop)
+
+
 
 #pragma pack(push, 1)
 typedef struct certificate_request {

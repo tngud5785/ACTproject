@@ -1,9 +1,6 @@
 #include "ip_header.h"
 #include "ether_header.h"
-#include "tcp_header.h"
-#include "define.h"
-#include "struct.h"
-#include "include.h"
+
 
 
 void print_ip(ip_header* ip) {

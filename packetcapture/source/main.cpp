@@ -95,8 +95,7 @@ int main()
 	printf("1:TCP(HTTP, FTP, TELNET, SSH, SMTP, POP3, IMAP, P2P)\n");
 	printf("2:UDP(DNS, DHCP)\n");
 	printf("3.ARP\n");
-	printf("3:RARP\n");
-	printf("5:ALL\n");
+	printf("4:ALL\n");
 	printf("--------------------------------------------------------\n");
 	printf("번호 : (1-5) : ");
 
@@ -138,10 +137,6 @@ int main()
 		inum2 = 0;
 	}
 	else if (inum1 == 4) {
-		packet_filter = "eth.type == 0x0835";
-		inum2 = 0;
-	}
-	else if (inum1 == 5) {
 		inum2 = 0;
 	}
 	else {
@@ -173,52 +168,77 @@ int main()
 		 * we suppose to be in a C class network */
 		netmask = 0xffffff;
 
-	//if (pcap_compile(fp, &fcode, packet_filter, 1, netmask) < 0) { // 위에서 적은 packet_filter로 원하는 패킷만 캡처가능
-	//	fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
-	//	pcap_freealldevs(alldevs);
-	//	return -1;
-	//}
+	if (pcap_compile(fp, &fcode, packet_filter, 1, netmask) < 0) { // 위에서 적은 packet_filter로 원하는 패킷만 캡처가능
+		fprintf(stderr, "\nUnable to compile the packet filter. Check the syntax.\n");
+		pcap_freealldevs(alldevs);
+		return -1;
+	}
 
-	//if (pcap_setfilter(fp, &fcode) < 0) { //필터 적용
-	//	fprintf(stderr, "\nError setting the filter.\n");
-	//	pcap_freealldevs(alldevs);
-	//	return -1;
-	//}
+	if (pcap_setfilter(fp, &fcode) < 0) { //필터 적용
+		fprintf(stderr, "\nError setting the filter.\n");
+		pcap_freealldevs(alldevs);
+		return -1;
+	}
 
 	pcap_freealldevs(alldevs);
 
 	struct pcap_pkthdr* header;
 	
 	const unsigned char* pkt_data;
-	const unsigned char* ether_data;
+	
+	int ether_length_option = 0;
+	
 	int res;
 
 	while ((res = pcap_next_ex(fp, &header, &pkt_data)) >= 0) {
 		if (res == 0) continue;
-		ether_data = pkt_data;
-		if (pkt_data[13] == 0x00) {
-			pk->app = pkt_data;
 
-			struct ether_header* eh;
-			eh = (ether_header*)pk->app;
-			pk->eth = eh;
+		header = (pcap_pkthdr*)header;
+		pk->header = header;
 
-			struct ip_header* ih;
-			ih = (ip_header*)(pk->app + ETHER_LENGTH);
-			pk->ip = ih;
-
-			struct tcp_header* th;
-			th = (tcp_header*)(pk->app + ETHER_LENGTH + (pk->ip->ip_leng * 4));
-			pk->tcp = th;
-
-			header = (pcap_pkthdr*)header;
-			pk->header = header;
-
-			int udplen;
-			
-			
-			/*print_ip(pk->ip);*/
-			print_tls(ether_data);
+		if (pk->header->len <= 60 && pk->header->len > 54) {
+			ether_length_option = 20;
 		}
+		else {
+			ether_length_option = 14;
+		}
+		pk->app = pkt_data;
+
+		ether_header* eh;
+		eh = (ether_header*)pkt_data;
+		pk->eth = eh;
+
+		ip_header* ih;
+		ih = (ip_header*)(pkt_data + ether_length_option);
+		pk->ip = ih;
+
+		tcp_header* th;
+		th = (tcp_header*)(pkt_data + ether_length_option + (pk->ip->ip_leng * 4));
+		pk->tcp = th;
+
+		tls_header* tls;
+		tls = (tls_header*)(pkt_data + ether_length_option + (pk->ip->ip_leng * 4) + ((ntohs(th->thl_flags) >> 12) & 0xf) * 4);
+		pk->tls = tls;
+
+		arp_header* ah;
+		ah = (arp_header*)(pkt_data + ether_length_option);
+		pk->arp = ah;
+		int udplen;
+
+		int tcplen = ((ntohs(th->thl_flags) >> 12) & 0xf) * 4;
+		int iplen = (ih->ip_leng) * 4;
+		if (pkt_data[12] == 0x08 && pkt_data[13] == 0x00) {
+			if (!(((ntohs(pk->ip->tlen)) - ((ntohs(th->thl_flags) >> 12) & 0xf) * 4 - (pk->ip->ip_leng * 4)) == 0)
+				&& !(((ntohs(pk->ip->tlen)) - ((ntohs(th->thl_flags) >> 12) & 0xf) * 4 - (pk->ip->ip_leng * 4)) == 1)
+				) {
+				print_tls(pkt_data);
+			}
+		}
+		/*else if (pkt_data[12] == 0x08 && pkt_data[13] == 0x06) {
+			print_ether_header(pk->eth);
+			print_ip(pk->ip);
+			print_tcp(pk->tcp, pk->ip);
+			print_tls(pkt_data);
+		}*/
 	}
 }

@@ -7,9 +7,7 @@
 #define IP_ADDR_LEN		4
 
 #define IPv4_HEADER	0x0800
-#define IPv6_HEADER 0x86DD
 #define ARP_HEADER	0x0806
-#define RARP_HEADER 0x0835
 
 //protocol type
 #define ICMP		1
@@ -55,6 +53,29 @@
 #define QS		0x19            // Quick-Start
 #define EXP		0x1E            // RFC3692-style Experiment
 
+//tcp option
+#define OPT_EOL             0x00
+#define OPT_NOP             0x01
+#define OPT_MSS             0x02
+#define OPT_WSCALE          0x03
+#define OPT_SACKPERMITTED   0x04
+#define OPT_SACK            0x05
+#define OPT_TIMESTAMP       0x08
+#define OPT_USER_TIMEOUT    0x1C
+#define OPT_TCP_A0          0x1D
+
+//tcp port
+#define HTTP            80
+#define SMTP            25
+#define POP3            110
+#define IMAP            143
+#define HTTPS           443
+#define DNS             53
+#define SSH             22
+#define FTP_DATA        20
+#define FTP_CONTROLL    21
+#define TELNET          23
+
 //record content type
 #define CHANGE_CIPHER_SPEC 0x14
 #define ALERT			   0x15
@@ -62,21 +83,39 @@
 #define APPLICATION_DATA   0x17
 
 //tls 1.2 handshake type
-#define HELLO_REQUEST		0x00
-#define CLIENT_HELLO		0x01
-#define SERVER_HELLO		0x02
-#define NEW_SESSION_TICKET	0x04
-#define CERTIFICATE			0x0B
-#define SERVER_KEY_EXCHANGE	0x0C
-#define CERTIFICATE_REQUEST	0x0D
-#define SERVER_HELLO_DONE	0x0E
-#define CERTIFICATE_VERIFY	0x0F
-#define CLIENT_KEY_EXCHANGE	0x10
-#define FINISHED			0x14
+#define HELLO_REQUEST_RESERVED		    0x00
+#define CLIENT_HELLO		            0x01
+#define SERVER_HELLO		            0x02
+#define HELLO_VERIFY_REQUEST_RESERVED   0x03
+#define NEW_SESSION_TICKET	            0x04
+#define END_OF_EARLY_DATA	            0x05
+#define HELLO_RETRY_REQUEST_RESERVED    0x06
+#define UNASSIGNED                      0x07
+#define ENCRYPTED_EXTENSIONS            0x08
+#define REQUEST_CONNNETCION_ID          0x09
+#define NEW_CONNECTION_ID               0x0A
+#define CERTIFICATE                     0x0B
+#define SERVER_KEY_EXCHANGE_RESERVED    0x0C
+#define CERTIFICATE_REQUEST	            0x0D
+#define SERVER_HELLO_DONE_RESERVED      0x0E
+#define CERTIFICATE_VERIFY	            0x0F
+#define CLIENT_KEY_EXCHANGE_RESERVED    0x10
+#define CLIENT_CERTIFICATE_REQUEST      0x11
+#define UNASSIGNED18                    0x12
+#define UNASSIGNED19                     0x13
+#define FINISHED			            0x14
+#define CERTIFICATE_URL_RESERVED        0x15
+#define CERTOFICATE_STATUS_RESERVED     0x16
+#define SUPPLEMENTAL_DATA_RESERVED      0x17
+#define KEY_UPDATE			            0x18
+#define COMPRESSED_CERTIFICATE          0x19
+#define EKT_KEY 			            0x20
+#define UNASSIGNED27_253	            0x21
+#define MESSAGE_HASH			        0xFE
+#define UNASSIGNED255			        0xFE
+
 
 //tls 1.3 handshake type
-#define NEW_SESSION_TICKET		0x04
-#define END_OF_EARLY_DATA		0x05
 #define ENCRYPTED_EXTENSIONS	0x08
 #define KEY_UPDATE				0x18
 #define MESSAGE_HASH			0xFE
@@ -177,29 +216,52 @@
 #define ecdsa_sha1              0x0203
 
 
+
 //signature hash algorithm hash
-#define SHAH_anonymous               0
-#define SHAH_rsa                     1
-#define SHAH_dsa                     2
-#define SHAH_ecdsa                   3
-#define SHAH_ed25519                 7
-#define SHAH_ed448                   8
-#define SHAH_gostr34102012_256       64
-#define SHAH_gostr34102012_512       65
-//나머지는 reserved처리
+#define SHAS_none        0x00
+#define SHAS_md5         0x01
+#define SHAS_sha1        0x02
+#define SHAS_sha224      0x03
+#define SHAS_sha256      0x04
+#define SHAS_sha384      0x05
+#define SHAS_sha512      0x06
+#define SHAS_reserved    0x07 // unknown 처리
+#define SHAS_Intrinsic   0x08 // unknown 처리
+//나머지 reserved처리
 
 
 //signature hash algorithm signature
-#define SHAS_none        0
-#define SHAS_md5         1
-#define SHAS_sha1        2
-#define SHAS_sha224      3
-#define SHAS_sha256      4
-#define SHAS_sha384      5
-#define SHAS_sha512      6
-#define SHAS_reserved    7 // unknown 처리
-#define SHAS_Intrinsic   8 // unknown 처리
-//나머지 reserved처리
+#define SHAH_anonymous               0x00
+#define SHAH_rsa                     0x01
+#define SHAH_dsa                     0x02
+#define SHAH_ecdsa                   0x03
+#define SHAH_ed25519                 0x07
+#define SHAH_ed448                   0x08
+#define SHAH_gostr34102012_256       0x40
+#define SHAH_gostr34102012_512       0x41
+//나머지는 reserved처리
+
+
+//server key exchange curve type
+#define CURVE_UNASSIGNED                            0x00
+#define CURVE_EXPLICIT_PRIME                        0x01
+#define CURVE_EXPLICIT_CHAR2                        0x02
+#define CURVE_NAMED_CURVE                           0x03
+#define CURVE_UNASSIGNED_4_247                      0x04
+#define CURVE_RESERVED_FOR_PRIVEATE_USE_248_255     0x05
+
+//server key exchange ecdhe named curve
+#define CURVE_DEPRECATED1_22            0x0001
+#define CURVE_SECP256R1                 0x0017
+#define CURVE_SECP384R1                 0x0018
+#define CURVE_SECP521R1                 0x0019
+#define CURVE_X25519                    0x001D
+#define CURVE_X448                      0x001E
+#define CURVE_RESERVED_0xFE00           0xFE00
+#define CURVE_RESERVED_0xFEFF           0xFEFF
+#define CURVE_DEPRECATED_0xFF01         0xFF01
+#define CURVE_DEPRECATED_0xFF02         0xFF02
+
 
 //extension
 #define SERVER_NAME 0 // o 0번 host
@@ -279,4 +341,7 @@
 #define SEQUENCE_NUMBER_ENCRYPTION_ALGORITHMS 60
 #define RRC 61
 #define UNASSIGNED_62_TO_2569 62  // 62부터 2569까지 할당되지 않은 값들을 표현
+#define Reserved_2570          2570
+#define Reserved_51914         51914
+#define Reserved_56026         56026
 #define ENCRYPTED_CLIENT_HELLO 65037
