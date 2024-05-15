@@ -1,10 +1,12 @@
 #include "tcp_header.h"
 #include "ip_header.h"
+#include "include.h"
 
 void print_tcp(tcp_header* tcp, ip_header* ih, const unsigned char* pkt_data) {
 	extern packet* pk;
 	int tcp_option_offset = 0;
 	int option_start = 0;
+	int tcp_option_length = ((ntohs(tcp->thl_flags) >> 12) & 0xf) * 4 - 20;
 	print_ip(pk->ip);
 	printf("************************* TCP Header *************************\n");
 	printf("\n");
@@ -50,12 +52,14 @@ void print_tcp(tcp_header* tcp, ip_header* ih, const unsigned char* pkt_data) {
 	printf("Urgent Pointer: %d\n", tcp->urgptr);
 	printf("\n");
 	
-	/*if (((ntohs(tcp->thl_flags) >> 12) & 0xf) * 4 > 20){
-		printf("Options: (%d bytes)\n", (((ntohs(tcp->thl_flags) >> 12) & 0xf) * 4 - 20));
+	pk->app = (pkt_data + ETHER_LENGTH + (pk->ip->ip_leng * 4) + ((ntohs(tcp->thl_flags) >> 12) & 0xf) * 4);
+
+	if (((ntohs(tcp->thl_flags) >> 12) & 0xf) * 4 > sizeof(tcp_header)){
+		printf("Options: (%d bytes)\n", ((ntohs(tcp->thl_flags) >> 12) & 0xf) * 4 - sizeof(tcp_header));
 		printf("\n");
-		while ((((ntohs(tcp->thl_flags) >> 12) & 0xf) * 4 - 20) != tcp_option_offset) {
+		while ((((ntohs(tcp->thl_flags) >> 12) & 0xf) * 4 - sizeof(tcp_header)) != tcp_option_offset) {
 			tcp_header_option* tho;
-			option_start = ETHER_LENGTH + (pk->ip->ip_leng) * 4 + (((ntohs(tcp->thl_flags) >> 12) & 0xf) * 4 - 20) + tcp_option_offset;
+			option_start = ETHER_LENGTH + (pk->ip->ip_leng) * 4 + ((ntohs(tcp->thl_flags) >> 12) & 0xf) * 4 - tcp_option_length + tcp_option_offset;
 			tho = (tcp_header_option*)(pkt_data + option_start);
 			switch (tho->tcp_kind) {
 				case OPT_EOL:
@@ -88,6 +92,8 @@ void print_tcp(tcp_header* tcp, ip_header* ih, const unsigned char* pkt_data) {
 					printf("MSS Value: %d", ntohs(thom->mss_value));
 					printf("\n");
 					tcp_option_offset += 4;
+
+					pk->mss = (const unsigned char*)(ntohs(thom->mss_value));
 					break;
 				case OPT_WSCALE:
 					tcp_header_option_wscale* thow;
@@ -118,27 +124,32 @@ void print_tcp(tcp_header* tcp, ip_header* ih, const unsigned char* pkt_data) {
 					thos = (tcp_header_option_sack*)(pkt_data + option_start);
 					printf("TCP Option - SACK\n");
 					printf("\n");
-					printf("Kind: No-Operation (%d)\n", thos->tcp_header_option.tcp_kind);
+					printf("Kind: SACK (%d)\n", thos->tcp_header_option.tcp_kind);
 					printf("\n");
 					tcp_option_offset += thos->sack_length;
 					break;
 				case OPT_TIMESTAMP:
 					tcp_header_option_timestamp* thots;
 					thots = (tcp_header_option_timestamp*)(pkt_data + option_start);
-					printf("TCP Option - No-Operation (NOP)\n");
+					printf("TCP Option - Timestamps: TSval %d, TSecr %d\n", ntohl(thots->timestamp_value), ntohl(thots->timestamp_echo_reply));
 					printf("\n");
-					printf("Kind: No-Operation (%d)\n", thots->tcp_header_option.tcp_kind);
+					printf("Kind: Time Stamp Option (%d)\n", thots->tcp_header_option.tcp_kind);
 					printf("\n");
 					printf("Length: %d\n", thots->timestamp_length);
 					printf("\n");
+					printf("Timestamp value: %d\n", ntohl(thots->timestamp_value));
+					printf("\n");
+					printf("Timestamp echo reply: %d\n", ntohl(thots->timestamp_echo_reply));
+					printf("\n");
+
 					tcp_option_offset += 10;
 					break;
 				case OPT_USER_TIMEOUT:
 					tcp_header_option_uto* thou;
 					thou = (tcp_header_option_uto*)(pkt_data + option_start);
-					printf("TCP Option - No-Operation (NOP)\n");
+					printf("TCP Option - User Timeout (NOP)\n");
 					printf("\n");
-					printf("Kind: No-Operation (%d)\n", thou->tcp_header_option.tcp_kind);
+					printf("Kind: User Timeout (%d)\n", thou->tcp_header_option.tcp_kind);
 					printf("\n");
 					tcp_option_offset += 4;
 					break;
@@ -147,9 +158,9 @@ void print_tcp(tcp_header* tcp, ip_header* ih, const unsigned char* pkt_data) {
 					thota = (tcp_header_option_tcp_a0*)(pkt_data + option_start);
 					thota = (tcp_header_option_tcp_a0*)malloc(thota->a0_length);
 					thota = (tcp_header_option_tcp_a0*)(pkt_data + option_start);
-					printf("TCP Option - No-Operation (NOP)\n");
+					printf("TCP Option - TCP A0 (NOP)\n");
 					printf("\n");
-					printf("Kind: No-Operation (%d)\n", thota->tcp_header_option.tcp_kind);
+					printf("Kind: TCP A0 (%d)\n", thota->tcp_header_option.tcp_kind);
 					printf("\n");
 					tcp_option_offset += thota->a0_length;
 					break;
@@ -162,5 +173,5 @@ void print_tcp(tcp_header* tcp, ip_header* ih, const unsigned char* pkt_data) {
 					break;
 			}
 		}
-	}*/
+	}
 }

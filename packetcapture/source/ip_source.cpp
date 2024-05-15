@@ -70,7 +70,7 @@ void print_ip(ip_header* ip) {
 		ip->daddr.byte3,
 		ip->daddr.byte4);
 	printf("\n");
-	if ((ip->ip_leng) * 4 > 20) {
+	if ((ip->ip_leng) * 4 > 20) { //igmp
 		ip_header_option* iho;
 		iho = (ip_header_option*)(pk->app + ETHER_LENGTH);
 		switch (iho->option_copy_class_number) {

@@ -7,6 +7,7 @@
 #include "tcp_struct.h"
 #include "tls_struct.h"
 
+#pragma pack(push, 1)
 typedef struct udp_header {
 	u_short		sport;
 	u_short		dport;
@@ -53,6 +54,7 @@ typedef struct packet {
 	arp_header* arp;
 	ip_header* ip;
 	tcp_header* tcp;
+	const unsigned char* mss;
 	udp_header* udp;
 	dns_header* dns;
 	tls_header* tls;
@@ -61,4 +63,13 @@ typedef struct packet {
 	int tcpCheck;
 	int udpCheck;
 }packet;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct signing_data {
+	client_hello*			ch;
+	server_hello*			sh;
+	server_key_exchange*	ske;
+	certificate*			cert;
+} SigningData;
 #pragma pack(pop)

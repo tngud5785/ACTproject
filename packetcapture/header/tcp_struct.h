@@ -69,7 +69,8 @@ typedef struct tcp_header_option_sack {
 typedef struct tcp_header_option_timestamp {
 	TcpHeaderOption		tcp_header_option;
 	u_char				timestamp_length;
-
+	u_int				timestamp_value;
+	u_int				timestamp_echo_reply;
 }TcpHeaderOptionTimestamp;
 #pragma pack(pop)
 

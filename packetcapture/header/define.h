@@ -341,7 +341,8 @@
 #define SEQUENCE_NUMBER_ENCRYPTION_ALGORITHMS 60
 #define RRC 61
 #define UNASSIGNED_62_TO_2569 62  // 62부터 2569까지 할당되지 않은 값들을 표현
-#define Reserved_2570          2570
-#define Reserved_51914         51914
-#define Reserved_56026         56026
-#define ENCRYPTED_CLIENT_HELLO 65037
+#define Reserved_2570           2570
+#define Reserved_51914          51914
+#define Reserved_56026          56026
+#define ENCRYPTED_CLIENT_HELLO  65037
+#define RENEGOTIATION_INFO      65281      

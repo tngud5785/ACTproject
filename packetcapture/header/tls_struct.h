@@ -46,12 +46,16 @@ typedef struct application_proto {
 }ApplicationData;
 #pragma pack(pop)
 
+
+//hello request
 #pragma pack(push, 1)
 typedef struct hello_request {
 	TLSHeader	tls_header;
 }HelloRequest;
 #pragma pack(pop)
 
+
+//client hello
 #pragma pack(push, 1)
 typedef struct client_hello {
 	Handshake		handshake_header;
@@ -81,15 +85,6 @@ typedef struct client_hello_compression {
 }ClientHelloCompression;
 #pragma pack(pop)
 
-
-
-
-
-
-
-
-
-//extension struct
 #pragma pack(push, 1)
 typedef struct client_hello_extensions {
 	u_short			extensions_total_length;
@@ -105,6 +100,42 @@ typedef struct extensions_type_length {
 } ExtensionsTypeLength;
 #pragma pack(pop)
 
+
+
+//server hello struct
+#pragma pack(push, 1)
+typedef struct server_hello {
+	Handshake		handshake_header;
+	u_short			server_hello_version;
+	u_char			sh_random_bytes[32];
+	u_char			sh_session_id_length;
+	u_short			sh_cipher_suites;
+	u_char			sh_compression_methods;
+	u_short			sh_extensions_length;
+}ServerHello;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct server_hello_extensions {
+	u_short			extensions_type;
+	u_short			extensions_length;
+}ServerHelloExtensions;
+#pragma pack(pop)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//extension struct
 #pragma pack(push, 1)
 typedef struct server_name {
 	ExtensionsTypeLength	extensions_type_length;
@@ -550,22 +581,18 @@ typedef struct encrypted_client_hello_payload{
 } EncryptedClientHelloPayload;
 #pragma pack(pop)
 
-
-
-
-
-
-#pragma pack(push, 1)
-typedef struct server_hello {
-
-}ServerHello;
-#pragma pack(pop)
-
 #pragma pack(push, 1)
 typedef struct new_session_ticket {
 
 }NewSessionTicket;
 #pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct renegotiation_info {
+	u_char			renegotiation_info_extension;
+} RenegotiationInfo;
+#pragma pack(pop)
+
 
 
 //handshake-certificate

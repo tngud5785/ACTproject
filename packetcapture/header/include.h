@@ -6,3 +6,4 @@
 #include <tchar.h>
 #include <WinSock2.h>
 #include <stdint.h>
+#include <math.h>

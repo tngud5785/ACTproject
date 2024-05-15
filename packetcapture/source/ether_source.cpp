@@ -41,6 +41,21 @@ void print_ether_header(ether_header* eh) {
 	else {
 		printf("Type: Unknown(0x%04x)\n", ptype);
 	}
-	
+	printf("\n");
+
+	if (pk->header->len <= 60 && pk->header->len > 54 && (ntohs(eh->ether_type) == IPv4_HEADER)) {
+		printf("Padding: ");
+		for (int i = 1; i <= ntohs(pk->ip->tlen) - ETHER_LENGTH - ((pk->ip->ip_leng) * 4) - (((ntohs(pk->tcp->thl_flags) >> 12) & 0xf) * 4); i++) {
+			printf("00");
+		}
+		printf("\n");
+	}
+	else if(pk->header->len <= 60 && pk->header->len > 54 && (ntohs(eh->ether_type) == ARP_HEADER)) {
+		printf("Padding: ");
+		for (int i = 1; i <= ntohs(pk->ip->tlen) - ETHER_LENGTH - ((pk->ip->ip_leng) * 4) - (((ntohs(pk->tcp->thl_flags) >> 12) & 0xf) * 4); i++) {
+			printf("00");
+		}
+		printf("\n");
+	}
 	printf("\n");
 }
