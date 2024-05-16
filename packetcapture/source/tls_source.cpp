@@ -4,7 +4,7 @@
 
 void print_tls(const unsigned char* pkt_data) {
 	extern packet* pk;
-
+	extern signing_data* sd;
 	u_int extension_offset = 0;
 	int tls_data = ETHER_LENGTH + (pk->ip->ip_leng * 4) + (((ntohs(pk->tcp->thl_flags) >> 12) & 0xf) * 4);
 	int tcp_payload_length = ntohs(pk->ip->tlen) - (pk->ip->ip_leng * 4) - ((ntohs(pk->tcp->thl_flags) >> 12) & 0xf) * 4;
@@ -32,6 +32,31 @@ void print_tls(const unsigned char* pkt_data) {
 
 	server_hello* sh;
 	sh = (server_hello*)(pkt_data + tls_data);
+
+	//client extension 처리
+	int chs_start = tls_data + sizeof(client_hello);
+
+	client_hello_session* chs;
+	chs = (client_hello_session*)(pkt_data + chs_start);
+
+	int chc_start = chs_start + sizeof(chs->ch_session_id_length) + chs->ch_session_id_length;
+
+	client_hello_cipher* chc;
+	chc = (client_hello_cipher*)(pkt_data + chc_start);
+
+	int chcom_start = chc_start + sizeof(chc->ch_cipher_suites_length) + ntohs(chc->ch_cipher_suites_length);
+
+	client_hello_compression* chcom;
+	chcom = (client_hello_compression*)(pkt_data + chcom_start);
+
+
+
+	int Extensions_start = chcom_start + sizeof(chcom->ch_compression_methods_length) + chcom->ch_compression_methods_length;
+
+	client_hello_extensions* che;
+	che = (client_hello_extensions*)(pkt_data + Extensions_start);
+
+	Extensions_start = chcom_start + sizeof(chcom->ch_compression_methods_length) + chcom->ch_compression_methods_length + sizeof(che->extensions_total_length);
 
 	print_tcp(pk->tcp, pk->ip, pkt_data);
 	while (tcp_payload_length != tls_offset) {
@@ -137,6 +162,21 @@ void print_tls(const unsigned char* pkt_data) {
 				}
 				else if (ap->alert_descl == DECRYPT_ERROR) { //키 교환 과정에서 발생한 암호 해독 오류와 관련, 키 교환에 사용된 서명 잘못된 경우
 					printf("Description: DECRYPT_ERROR (%d)\n", ap->alert_descl);
+					printf("\n");
+					printf("*********************************decrypt data*********************************\n");
+					printf("\n");
+					printf("client random: %s\n", sd->ch_random);
+					printf("\n");
+					printf("server random: %s\n", sd->sh_random);
+					printf("\n");
+					printf("curve type: %d\n", sd->ske->curve_type);
+					printf("\n");
+					printf("name curve: 0x%04x\n", sd->ske->named_curve);
+					printf("\n");
+					printf("pubkey_length: %d\n", sd->ske->pubkey_length);
+					printf("\n");
+					printf("pubkey: %s\n", sd->ske_pubkey);
+					printf("\n");
 				}
 				else if (ap->alert_descl == EXPORT_RESTRICTION) {
 					printf("Description: EXPORT_RESTRICTION (%d)\n", ap->alert_descl);
@@ -217,6 +257,9 @@ void print_tls(const unsigned char* pkt_data) {
 			tls_offset += sizeof(tls_header) + appli->tls_header.tls_length;
 		}
 		else if (th->tls_type == HANDSHAKE) {
+			char combined_data[65]; 
+			memset(combined_data, 0, sizeof(combined_data));
+			
 			if (ntohs(hp->tls_header.tls_length) == 0x0001 && cp->ccs_message == 0x01 && th->tls_type == 0x16) {
 				printf("Handshake Protocol: Encrypted Handshake Message\n");
 			}
@@ -235,6 +278,9 @@ void print_tls(const unsigned char* pkt_data) {
 			}
 			else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CLIENT_HELLO) {
 				client_hello* ch = (client_hello*)(pkt_data + tls_data + tls_offset);
+
+				char ch_combined_data[65];
+				memset(ch_combined_data, 0, sizeof(ch_combined_data));
 				printf("Handshake Type: Client Hello (%d)\n", ntohl(ch->handshake_header.handshake_type_leng) >> 24 & 0xFF);
 				printf("\n");
 				printf("Length: %d\n", ntohl(ch->handshake_header.handshake_type_leng) & 0xFFFFFF);
@@ -257,31 +303,11 @@ void print_tls(const unsigned char* pkt_data) {
 				}
 				printf("\n");
 				printf("\n");
-
-				//client extension 처리
-				int chs_start = tls_data + sizeof(client_hello);
-
-				client_hello_session* chs;
-				chs = (client_hello_session*)(pkt_data + chs_start);
-
-				int chc_start = chs_start + sizeof(chs->ch_session_id_length) + chs->ch_session_id_length;
-
-				client_hello_cipher* chc;
-				chc = (client_hello_cipher*)(pkt_data + chc_start);
-
-				int chcom_start = chc_start + sizeof(chc->ch_cipher_suites_length) + ntohs(chc->ch_cipher_suites_length);
-
-				client_hello_compression* chcom;
-				chcom = (client_hello_compression*)(pkt_data + chcom_start);
-
-				int Extensions_start = chcom_start + sizeof(chcom->ch_compression_methods_length) + chcom->ch_compression_methods_length;
-
-				client_hello_extensions* che;
-				che = (client_hello_extensions*)(pkt_data + Extensions_start);
-
-				Extensions_start = chcom_start + sizeof(chcom->ch_compression_methods_length) + chcom->ch_compression_methods_length + sizeof(che->extensions_total_length);
+				for (int i = 0; i < 32; i++) {
+					sprintf(ch_combined_data + (i * 2), "%02x", ch->ch_random_bytes[i]);
+				}
 				
-
+				sd->ch_random = (const unsigned char*)ch_combined_data;
 				chs = (client_hello_session*)malloc(sizeof(client_hello_session) + chs->ch_session_id_length * sizeof(char));
 				chs = (client_hello_session*)(pkt_data + chs_start); // pkt_data 처음 위치에 tls까지 위치 + tls의 시작부분부터 random까지 위치			
 				printf("Session ID Length: %d\n", chs->ch_session_id_length);
@@ -650,10 +676,36 @@ void print_tls(const unsigned char* pkt_data) {
 						printf("\n");
 						printf("Length: %d\n", ntohs(etl->extensions_length));
 						printf("\n");
-						printf("EC point format Length: %d\n", ntohs(epf->ec_point_formats_length));
+						printf("EC point format Length: %d\n", epf->ec_point_formats_length);
 						printf("\n");
 						printf("Elliptic curves point formats (%d)\n", epf->ec_point_formats_length);
 						printf("\n");
+						for (int i = 0; i < epf->ec_point_formats_length; i++) {
+							if (epf->ec_point_format[i] == UNCOMPRESSED) {
+								printf("EC Point format: uncompressed (%d)\n", epf->ec_point_format[i]);
+								printf("\n");
+							}
+							else if (epf->ec_point_format[i] == ANSIX962_COMPRESSED_PRIME) {
+								printf("EC Point format: ansiX962_compressed_prime (%d)\n", epf->ec_point_format[i]);
+								printf("\n");
+							}
+							else if (epf->ec_point_format[i] == ANSIX962_COMPRESSED_CHAR2) {
+								printf("EC Point format: ansiX962_compressed_char2 (%d)\n", epf->ec_point_format[i]);
+								printf("\n");
+							}
+							else if (epf->ec_point_format[i] >= 3 && epf->ec_point_format[i] <= 247) {
+								printf("EC Point format: unassigned (%d)\n", epf->ec_point_format[i]);
+								printf("\n");
+							}
+							else if (epf->ec_point_format[i] >= 248 && epf->ec_point_format[i] <= 255) {
+								printf("EC Point format: reserved_for_private_use (%d)\n", epf->ec_point_format[i]);
+								printf("\n");
+							}
+							else {
+								printf("EC Point format: Unknown (%d)\n", epf->ec_point_format[i]);
+								printf("\n");
+							}
+						}
 						extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 						break;
 					case SRP:
@@ -671,13 +723,156 @@ void print_tls(const unsigned char* pkt_data) {
 					case SIGNATURE_ALGORITHMS:
 						signature_algorithms* sa;
 						sa = (signature_algorithms*)(pkt_data + Extensions_start + extension_offset);
+						sa = (signature_algorithms*)malloc(ntohs(sa->signature_hash_algorithms_length));
+						sa = (signature_algorithms*)(pkt_data + Extensions_start + extension_offset);
 						printf("Extension: signature_algorithms (len=%d)\n", ntohs(etl->extensions_length));
 						printf("\n");
 						printf("Type: signature_algorithms (%d)\n", ntohs(etl->extensions_type));
 						printf("\n");
 						printf("Length: %d\n", ntohs(etl->extensions_length));
 						printf("\n");
-
+						printf("Signature Hash Algorithms Length: %d\n", ntohs(sa->signature_hash_algorithms_length));
+						printf("\n");
+						printf("Signature Hash Algorithms (%d algorithm)\n", ntohs(sa->signature_hash_algorithms_length) / 2);
+						printf("\n");
+						for (int i = 0; i < ntohs(sa->signature_hash_algorithms_length) / 2; i++){
+							if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pkcs1_sha256) {
+								printf("Signature Algorithm: rsa_pkcs1_sha256 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: RSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == ecdsa_secp256r1_sha256) {
+								printf("Signature Algorithm: ecdsa_secp256r1_sha256 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pkcs1_sha384) {
+								printf("Signature Algorithm: rsa_pkcs1_sha384 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: RSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == ecdsa_secp384r1_sha384) {
+								printf("Signature Algorithm: ecdsa_secp384r1_sha384 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pkcs1_sha512) {
+								printf("Signature Algorithm: rsa_pkcs1_sha512 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: RSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == ecdsa_secp521r1_sha512) {
+								printf("Signature Algorithm: ecdsa_secp521r1_sha512 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_rsae_sha256) {
+								printf("Signature Algorithm: rsa_pss_rsae_sha256 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_rsae_sha384) {
+								printf("Signature Algorithm: rsa_pss_rsae_sha384 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_rsae_sha512) {
+								printf("Signature Algorithm: rsa_pss_rsae_sha512 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == ed25519) {
+								printf("Signature Algorithm: ed25519 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: reserved (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == ed448) {
+								printf("Signature Algorithm: rsa_pkcs1_sha256 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: Intrinsic (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_pss_sha256) {
+								printf("Signature Algorithm: rsa_pss_pss_sha256 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_pss_sha384) {
+								printf("Signature Algorithm: rsa_pss_pss_sha384 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_pss_sha512) {
+								printf("Signature Algorithm: rsa_pss_pss_sha512 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pkcs1_sha1) {
+								printf("Signature Algorithm: rsa_pkcs1_sha1 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA1 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: RSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else if (ntohs(sa->signature_hash_algorithms[i]) == ecdsa_sha1) {
+								printf("Signature Algorithm: ecdsa_sha1 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: SHA1 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+							else {
+								printf("Signature Algorithm: unknown (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+								printf("\n");
+								printf("Signature Hash Algorithm Hash: unknown (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+								printf("\n");
+								printf("Signature Algorithm: unknown (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+								printf("\n");
+							}
+						}
 						extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 						break;
 					case USE_SRTP:
@@ -935,13 +1130,25 @@ void print_tls(const unsigned char* pkt_data) {
 					case SESSION_TICKET:
 						session_ticket* st;
 						st = (session_ticket*)(pkt_data + Extensions_start + extension_offset);
+						st = (session_ticket*)malloc(ntohs(etl->extensions_length));
+						st = (session_ticket*)(pkt_data + Extensions_start + extension_offset);
 						printf("Extension: session_ticket (len=%d)\n", ntohs(etl->extensions_length));
 						printf("\n");
 						printf("Type: session_ticket (%d)\n", ntohs(etl->extensions_type));
 						printf("\n");
 						printf("Length: %d\n", ntohs(etl->extensions_length));
 						printf("\n");
-
+						if (etl->extensions_length == 0) {
+							printf("Session Ticket: <MISSING>\n");
+						}
+						else {
+							printf("Session Ticket: ");
+							for (int i = 0; i < ntohs(etl->extensions_length); i++) {
+								printf("%x", st->session_ticket_data[i]);
+							}
+							printf("\n");
+						}
+						printf("\n");
 						extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 						break;
 					case TLMSP:
@@ -1031,12 +1238,42 @@ void print_tls(const unsigned char* pkt_data) {
 					case SUPPORTED_VERSIONS:
 						supported_versions* sv;
 						sv = (supported_versions*)(pkt_data + Extensions_start + extension_offset);
+						sv = (supported_versions*)malloc(sv->supported_versions_length);
+						sv = (supported_versions*)(pkt_data + Extensions_start + extension_offset);
 						printf("Extension: supported_versions (len=%d)\n", ntohs(etl->extensions_length));
 						printf("\n");
 						printf("Type: supported_versions (%d)\n", ntohs(etl->extensions_type));
 						printf("\n");
 						printf("Length: %d\n", ntohs(etl->extensions_length));
 						printf("\n");
+						printf("Suppoted Versions length: %d\n", sv->supported_versions_length);
+						printf("\n");
+						for (int i = 0; i < sv->supported_versions_length / 2; i++) {
+							if (ntohs(sv->supported_version[i]) == SSL_3_0) {
+								printf("Supported Version: SSL 3.0 (0x%04x)\n", ntohs(sv->supported_version[i]));
+								printf("\n");
+							}
+							else if (ntohs(sv->supported_version[i]) == TLS_1_0) {
+								printf("Supported Version: TLS 1.0 (0x%04x)\n", ntohs(sv->supported_version[i]));
+								printf("\n");
+							}
+							else if (ntohs(sv->supported_version[i]) == TLS_1_1) {
+								printf("Supported Version: TLS 1.1 (0x%04x)\n", ntohs(sv->supported_version[i]));
+								printf("\n");
+							}
+							else if (ntohs(sv->supported_version[i]) == TLS_1_2) {
+								printf("Supported Version: TLS 1.2 (0x%04x)\n", ntohs(sv->supported_version[i]));
+								printf("\n");
+							}
+							else if (ntohs(sv->supported_version[i]) == TLS_1_3) {
+								printf("Supported Version: TLS 1.3 (0x%04x)\n", ntohs(sv->supported_version[i]));
+								printf("\n");
+							}
+							else {
+								printf("Supported Version: Unknown (0x%04x)\n", ntohs(sv->supported_version[i]));
+								printf("\n");
+							}
+						}
 
 						extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 						break;
@@ -1055,12 +1292,38 @@ void print_tls(const unsigned char* pkt_data) {
 					case PSK_KEY_EXCHANGE_MODES:
 						psk_key_exchange_modes* pkem;
 						pkem = (psk_key_exchange_modes*)(pkt_data + Extensions_start + extension_offset);
+						pkem = (psk_key_exchange_modes*)malloc(pkem->psk_key_exchange_modes_length);
+						pkem = (psk_key_exchange_modes*)(pkt_data + Extensions_start + extension_offset);
 						printf("Extension: psk_key_exchange_modes (len=%d)\n", ntohs(etl->extensions_length));
 						printf("\n");
 						printf("Type: psk_key_exchange_modes (%d)\n", ntohs(etl->extensions_type));
 						printf("\n");
 						printf("Length: %d\n", ntohs(etl->extensions_length));
 						printf("\n");
+						printf("PSK key Exchange Modes Length: %d\n", pkem->psk_key_exchange_modes_length);
+						printf("\n");
+						for (int i = 0; i < pkem->psk_key_exchange_modes_length; i++) {
+							if (pkem->psk_key_exchange_mode[i] == PSK_KE) {
+								printf("PSK key Exchange Mode: PSK key establishment (psk_ke) (%d)\n", pkem->psk_key_exchange_mode[i]);
+								printf("\n");
+							}
+							else if (pkem->psk_key_exchange_mode[i] == PSK_DHE_KE) {
+								printf("PSK key Exchange Mode: PSK with (EC)DHE key establishment (psk_dhe_ke) (%d)\n", pkem->psk_key_exchange_mode[i]);
+								printf("\n");
+							}
+							else if (pkem->psk_key_exchange_mode[i] >= UNASSIGNED_2 && pkem->psk_key_exchange_mode[i] <= UNASSIGNED_253) {
+								printf("PSK key Exchange Mode: Unassigned (%d)\n", pkem->psk_key_exchange_mode[i]);
+								printf("\n");
+							}
+							else if (pkem->psk_key_exchange_mode[i] >= RESERVED_FOR_PRIVATE_USE_254 && pkem->psk_key_exchange_mode[i] <= RESERVED_FOR_PRIVATE_USE_255) {
+								printf("PSK key Exchange Mode: Reserved For Private Use (%d)\n", pkem->psk_key_exchange_mode[i]);
+								printf("\n");
+							}
+							else {
+								printf("PSK key Exchange Mode: Unknown (%d)\n", pkem->psk_key_exchange_mode[i]);
+								printf("\n");
+							}
+						}
 
 						extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 						break;
@@ -1127,12 +1390,102 @@ void print_tls(const unsigned char* pkt_data) {
 					case KEY_SHARE:
 						key_share* ks;
 						ks = (key_share*)(pkt_data + Extensions_start + extension_offset);
+						ks = (key_share*)malloc(ntohs(ks->key_exchange_length));
+						ks = (key_share*)(pkt_data + Extensions_start + extension_offset);
 						printf("Extension: key_share (len=%d)\n", ntohs(etl->extensions_length));
 						printf("\n");
 						printf("Type: key_share (%d)\n", ntohs(etl->extensions_type));
 						printf("\n");
 						printf("Length: %d\n", ntohs(etl->extensions_length));
 						printf("\n");
+						printf("Key Share extension\n");
+						printf("\n");
+						printf("Client Key Share Length: %d\n", ntohs(ks->Client_key_share_length));
+						printf("\n");
+						if (ntohs(ks->group) == CURVE_SECP256R1) {
+							printf("Key Share Entry: Group: secp256r1, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("Group: secp256r1 (%d)\n", ntohs(ks->group));
+							printf("\n");
+							printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("key Exchange: ");
+							for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+								printf("%x", ks->key_exchange[i]);
+							}
+							printf("\n");
+							printf("\n");
+						}
+						else if (ntohs(ks->group) == CURVE_SECP384R1) {
+							printf("Key Share Entry: Group: secp384r1, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("Group: secp384r1 (%d)\n", ntohs(ks->group));
+							printf("\n");
+							printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("key Exchange: ");
+							for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+								printf("%x", ks->key_exchange[i]);
+							}
+							printf("\n");
+							printf("\n");
+						}
+						else if (ntohs(ks->group) == CURVE_SECP521R1) {
+							printf("Key Share Entry: Group: secp521r1, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("Group: secp521r1 (%d)\n", ntohs(ks->group));
+							printf("\n");
+							printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("key Exchange: ");
+							for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+								printf("%x", ks->key_exchange[i]);
+							}
+							printf("\n");
+							printf("\n");
+						}
+						else if (ntohs(ks->group) == CURVE_X25519) {
+							printf("Key Share Entry: Group: x25519, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("Group: x25519 (%d)\n", ntohs(ks->group));
+							printf("\n");
+							printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("key Exchange: ");
+							for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+								printf("%01x", ks->key_exchange[i]);
+							}
+							printf("\n");
+							printf("\n");
+						}
+						else if (ntohs(ks->group) == CURVE_X448) {
+							printf("Key Share Entry: Group: secp384r1, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("Group: x25519 (%d)\n", ntohs(ks->group));
+							printf("\n");
+							printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("key Exchange: ");
+							for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+								printf("%x", ks->key_exchange[i]);
+							}
+							printf("\n");
+							printf("\n");
+						}
+						else {
+							printf("Key Share Entry: Group: Unknown, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("Group: Unknown (%d)\n", ntohs(ks->group));
+							printf("\n");
+							printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+							printf("\n");
+							printf("key Exchange: ");
+							for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+								printf("%x", ks->key_exchange[i]);
+							}
+							printf("\n");
+							printf("\n");
+						}
 
 						extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 						break;
@@ -1319,6 +1672,9 @@ void print_tls(const unsigned char* pkt_data) {
 			}
 				else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == SERVER_HELLO) {
 					server_hello* sh = (server_hello*)(pkt_data + tls_data + tls_offset);
+					char sh_combined_data[65];
+					memset(sh_combined_data, 0, sizeof(sh_combined_data));
+					
 					printf("Handshake Type: Server Hello (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
 					printf("\n");
 					printf("Length: %d\n", ntohl(sh->handshake_header.handshake_type_leng) & 0xFFFFFF);
@@ -1339,6 +1695,12 @@ void print_tls(const unsigned char* pkt_data) {
 					for (int i = 0; i < 32; i++) {
 						printf("%02x", sh->sh_random_bytes[i]);
 					}
+					for (int i = 0; i < 32; i++) {
+						sprintf(sh_combined_data + (i * 2), "%02x", sh->sh_random_bytes[i]);
+					}
+
+					sd->sh_random = (const unsigned char*)sh_combined_data;
+
 					printf("\n");
 					printf("\n");
 					printf("Session ID Length: %d\n", sh->sh_session_id_length);
@@ -1685,6 +2047,8 @@ void print_tls(const unsigned char* pkt_data) {
 							case EC_POINT_FORMATS:
 								ec_point_formats* epf;
 								epf = (ec_point_formats*)(pkt_data + Extensions_start + extension_offset);
+								epf = (ec_point_formats*)malloc(epf->ec_point_formats_length);
+								epf = (ec_point_formats*)(pkt_data + Extensions_start + extension_offset);
 								printf("Extension: ec_point_formats (len=%d)\n", ntohs(etl->extensions_length));
 								printf("\n");
 								printf("Type:  ec_point_formats (%d)\n", ntohs(etl->extensions_type));
@@ -1695,6 +2059,32 @@ void print_tls(const unsigned char* pkt_data) {
 								printf("\n");
 								printf("Elliptic curves point formats (%d)\n", epf->ec_point_formats_length);
 								printf("\n");
+								for (int i = 0; i < epf->ec_point_formats_length; i++) {
+									if (epf->ec_point_format[i] == UNCOMPRESSED) {
+										printf("EC Point format: uncompressed (%d)\n", epf->ec_point_format[i]);
+										printf("\n");
+									}
+									else if (epf->ec_point_format[i] == ANSIX962_COMPRESSED_PRIME) {
+										printf("EC Point format: ansiX962_compressed_prime (%d)\n", epf->ec_point_format[i]);
+										printf("\n");
+									}
+									else if (epf->ec_point_format[i] == ANSIX962_COMPRESSED_CHAR2) {
+										printf("EC Point format: ansiX962_compressed_char2 (%d)\n", epf->ec_point_format[i]);
+										printf("\n");
+									}
+									else if (epf->ec_point_format[i] >= 3 && epf->ec_point_format[i] <= 247) {
+										printf("EC Point format: unassigned (%d)\n", epf->ec_point_format[i]);
+										printf("\n");
+									}
+									else if (epf->ec_point_format[i] >= 248 && epf->ec_point_format[i] <= 255) {
+										printf("EC Point format: reserved_for_private_use (%d)\n", epf->ec_point_format[i]);
+										printf("\n");
+									}
+									else {
+										printf("EC Point format: Unknown (%d)\n", epf->ec_point_format[i]);
+										printf("\n");
+									}
+								}
 								extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 								break;
 							case SRP:
@@ -1712,13 +2102,156 @@ void print_tls(const unsigned char* pkt_data) {
 							case SIGNATURE_ALGORITHMS:
 								signature_algorithms* sa;
 								sa = (signature_algorithms*)(pkt_data + Extensions_start + extension_offset);
+								sa = (signature_algorithms*)malloc(ntohs(sa->signature_hash_algorithms_length));
+								sa = (signature_algorithms*)(pkt_data + Extensions_start + extension_offset);
 								printf("Extension: signature_algorithms (len=%d)\n", ntohs(etl->extensions_length));
 								printf("\n");
 								printf("Type: signature_algorithms (%d)\n", ntohs(etl->extensions_type));
 								printf("\n");
 								printf("Length: %d\n", ntohs(etl->extensions_length));
 								printf("\n");
-
+								printf("Signature Hash Algorithms Length: %d\n", ntohs(sa->signature_hash_algorithms_length));
+								printf("\n");
+								printf("Signature Hash Algorithms (%d algorithm)\n", ntohs(sa->signature_hash_algorithms_length) / 2);
+								printf("\n");
+								for (int i = 0; i < ntohs(sa->signature_hash_algorithms_length) / 2; i++) {
+									if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pkcs1_sha256) {
+										printf("Signature Algorithm: rsa_pkcs1_sha256 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: RSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == ecdsa_secp256r1_sha256) {
+										printf("Signature Algorithm: ecdsa_secp256r1_sha256 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pkcs1_sha384) {
+										printf("Signature Algorithm: rsa_pkcs1_sha384 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: RSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == ecdsa_secp384r1_sha384) {
+										printf("Signature Algorithm: ecdsa_secp384r1_sha384 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pkcs1_sha512) {
+										printf("Signature Algorithm: rsa_pkcs1_sha512 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: RSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == ecdsa_secp521r1_sha512) {
+										printf("Signature Algorithm: ecdsa_secp521r1_sha512 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_rsae_sha256) {
+										printf("Signature Algorithm: rsa_pss_rsae_sha256 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_rsae_sha384) {
+										printf("Signature Algorithm: rsa_pss_rsae_sha384 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_rsae_sha512) {
+										printf("Signature Algorithm: rsa_pss_rsae_sha512 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == ed25519) {
+										printf("Signature Algorithm: ed25519 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: reserved (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == ed448) {
+										printf("Signature Algorithm: rsa_pkcs1_sha256 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: Intrinsic (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_pss_sha256) {
+										printf("Signature Algorithm: rsa_pss_pss_sha256 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_pss_sha384) {
+										printf("Signature Algorithm: rsa_pss_pss_sha384 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pss_pss_sha512) {
+										printf("Signature Algorithm: rsa_pss_pss_sha512 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ED448 (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == rsa_pkcs1_sha1) {
+										printf("Signature Algorithm: rsa_pkcs1_sha1 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA1 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: RSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else if (ntohs(sa->signature_hash_algorithms[i]) == ecdsa_sha1) {
+										printf("Signature Algorithm: ecdsa_sha1 (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: SHA1 (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+									else {
+										printf("Signature Algorithm: unknown (0x%04x)\n", ntohs(sa->signature_hash_algorithms[i]));
+										printf("\n");
+										printf("Signature Hash Algorithm Hash: unknown (%d)\n", (ntohs(sa->signature_hash_algorithms[i]) >> 8) & 0xFF);
+										printf("\n");
+										printf("Signature Algorithm: unknown (%d)\n", ntohs(sa->signature_hash_algorithms[i]) & 0xFF);
+										printf("\n");
+									}
+								}
 								extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 								break;
 							case USE_SRTP:
@@ -1976,13 +2509,25 @@ void print_tls(const unsigned char* pkt_data) {
 							case SESSION_TICKET:
 								session_ticket* st;
 								st = (session_ticket*)(pkt_data + Extensions_start + extension_offset);
+								st = (session_ticket*)malloc(ntohs(etl->extensions_length));
+								st = (session_ticket*)(pkt_data + Extensions_start + extension_offset);
 								printf("Extension: session_ticket (len=%d)\n", ntohs(etl->extensions_length));
 								printf("\n");
 								printf("Type: session_ticket (%d)\n", ntohs(etl->extensions_type));
 								printf("\n");
 								printf("Length: %d\n", ntohs(etl->extensions_length));
 								printf("\n");
-
+								if (etl->extensions_length == 0) {
+									printf("Session Ticket: <MISSING>\n");
+								}
+								else {
+									printf("Session Ticket: ");
+									for (int i = 0; i < ntohs(etl->extensions_length); i++) {
+										printf("%x", st->session_ticket_data[i]);
+									}
+									printf("\n");
+								}
+								printf("\n");
 								extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 								break;
 							case TLMSP:
@@ -2072,12 +2617,42 @@ void print_tls(const unsigned char* pkt_data) {
 							case SUPPORTED_VERSIONS:
 								supported_versions* sv;
 								sv = (supported_versions*)(pkt_data + Extensions_start + extension_offset);
+								sv = (supported_versions*)malloc(sv->supported_versions_length);
+								sv = (supported_versions*)(pkt_data + Extensions_start + extension_offset);
 								printf("Extension: supported_versions (len=%d)\n", ntohs(etl->extensions_length));
 								printf("\n");
 								printf("Type: supported_versions (%d)\n", ntohs(etl->extensions_type));
 								printf("\n");
 								printf("Length: %d\n", ntohs(etl->extensions_length));
 								printf("\n");
+								printf("Suppoted Versions length: %d\n", sv->supported_versions_length);
+								printf("\n");
+								for (int i = 0; i < sv->supported_versions_length / 2; i++) {
+									if (ntohs(sv->supported_version[i]) == SSL_3_0) {
+										printf("Supported Version: SSL 3.0 (0x%04x)\n", ntohs(sv->supported_version[i]));
+										printf("\n");
+									}
+									else if (ntohs(sv->supported_version[i]) == TLS_1_0) {
+										printf("Supported Version: TLS 1.0 (0x%04x)\n", ntohs(sv->supported_version[i]));
+										printf("\n");
+									}
+									else if (ntohs(sv->supported_version[i]) == TLS_1_1) {
+										printf("Supported Version: TLS 1.1 (0x%04x)\n", ntohs(sv->supported_version[i]));
+										printf("\n");
+									}
+									else if (ntohs(sv->supported_version[i]) == TLS_1_2) {
+										printf("Supported Version: TLS 1.2 (0x%04x)\n", ntohs(sv->supported_version[i]));
+										printf("\n");
+									}
+									else if (ntohs(sv->supported_version[i]) == TLS_1_3) {
+										printf("Supported Version: TLS 1.3 (0x%04x)\n", ntohs(sv->supported_version[i]));
+										printf("\n");
+									}
+									else {
+										printf("Supported Version: Unknown (0x%04x)\n", ntohs(sv->supported_version[i]));
+										printf("\n");
+									}
+								}
 
 								extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 								break;
@@ -2096,12 +2671,38 @@ void print_tls(const unsigned char* pkt_data) {
 							case PSK_KEY_EXCHANGE_MODES:
 								psk_key_exchange_modes* pkem;
 								pkem = (psk_key_exchange_modes*)(pkt_data + Extensions_start + extension_offset);
+								pkem = (psk_key_exchange_modes*)malloc(pkem->psk_key_exchange_modes_length);
+								pkem = (psk_key_exchange_modes*)(pkt_data + Extensions_start + extension_offset);
 								printf("Extension: psk_key_exchange_modes (len=%d)\n", ntohs(etl->extensions_length));
 								printf("\n");
 								printf("Type: psk_key_exchange_modes (%d)\n", ntohs(etl->extensions_type));
 								printf("\n");
 								printf("Length: %d\n", ntohs(etl->extensions_length));
 								printf("\n");
+								printf("PSK key Exchange Modes Length: %d\n", pkem->psk_key_exchange_modes_length);
+								printf("\n");
+								for (int i = 0; i < pkem->psk_key_exchange_modes_length; i++) {
+									if (pkem->psk_key_exchange_mode[i] == PSK_KE) {
+										printf("PSK key Exchange Mode: PSK key establishment (psk_ke) (%d)\n", pkem->psk_key_exchange_mode[i]);
+										printf("\n");
+									}
+									else if (pkem->psk_key_exchange_mode[i] == PSK_DHE_KE) {
+										printf("PSK key Exchange Mode: PSK with (EC)DHE key establishment (psk_dhe_ke) (%d)\n", pkem->psk_key_exchange_mode[i]);
+										printf("\n");
+									}
+									else if (pkem->psk_key_exchange_mode[i] >= UNASSIGNED_2 && pkem->psk_key_exchange_mode[i] <= UNASSIGNED_253) {
+										printf("PSK key Exchange Mode: Unassigned (%d)\n", pkem->psk_key_exchange_mode[i]);
+										printf("\n");
+									}
+									else if (pkem->psk_key_exchange_mode[i] >= RESERVED_FOR_PRIVATE_USE_254 && pkem->psk_key_exchange_mode[i] <= RESERVED_FOR_PRIVATE_USE_255) {
+										printf("PSK key Exchange Mode: Reserved For Private Use (%d)\n", pkem->psk_key_exchange_mode[i]);
+										printf("\n");
+									}
+									else {
+										printf("PSK key Exchange Mode: Unknown (%d)\n", pkem->psk_key_exchange_mode[i]);
+										printf("\n");
+									}
+								}
 
 								extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 								break;
@@ -2168,12 +2769,102 @@ void print_tls(const unsigned char* pkt_data) {
 							case KEY_SHARE:
 								key_share* ks;
 								ks = (key_share*)(pkt_data + Extensions_start + extension_offset);
+								ks = (key_share*)malloc(ntohs(ks->key_exchange_length));
+								ks = (key_share*)(pkt_data + Extensions_start + extension_offset);
 								printf("Extension: key_share (len=%d)\n", ntohs(etl->extensions_length));
 								printf("\n");
 								printf("Type: key_share (%d)\n", ntohs(etl->extensions_type));
 								printf("\n");
 								printf("Length: %d\n", ntohs(etl->extensions_length));
 								printf("\n");
+								printf("Key Share extension\n");
+								printf("\n");
+								printf("Server Key Share Length: %d\n", ntohs(ks->Client_key_share_length));
+								printf("\n");
+								if (ntohs(ks->group) == CURVE_SECP256R1) {
+									printf("Key Share Entry: Group: secp256r1, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("Group: secp256r1 (%d)\n", ntohs(ks->group));
+									printf("\n");
+									printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("key Exchange: ");
+									for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+										printf("%x", ks->key_exchange[i]);
+									}
+									printf("\n");
+									printf("\n");
+								}
+								else if (ntohs(ks->group) == CURVE_SECP384R1) {
+									printf("Key Share Entry: Group: secp384r1, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("Group: secp384r1 (%d)\n", ntohs(ks->group));
+									printf("\n");
+									printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("key Exchange: ");
+									for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+										printf("%x", ks->key_exchange[i]);
+									}
+									printf("\n");
+									printf("\n");
+								}
+								else if (ntohs(ks->group) == CURVE_SECP521R1) {
+									printf("Key Share Entry: Group: secp521r1, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("Group: secp521r1 (%d)\n", ntohs(ks->group));
+									printf("\n");
+									printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("key Exchange: ");
+									for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+										printf("%x", ks->key_exchange[i]);
+									}
+									printf("\n");
+									printf("\n");
+								}
+								else if (ntohs(ks->group) == CURVE_X25519) {
+									printf("Key Share Entry: Group: x25519, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("Group: x25519 (%d)\n", ntohs(ks->group));
+									printf("\n");
+									printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("key Exchange: ");
+									for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+										printf("%01x", ks->key_exchange[i]);
+									}
+									printf("\n");
+									printf("\n");
+								}
+								else if (ntohs(ks->group) == CURVE_X448) {
+									printf("Key Share Entry: Group: secp384r1, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("Group: x25519 (%d)\n", ntohs(ks->group));
+									printf("\n");
+									printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("key Exchange: ");
+									for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+										printf("%x", ks->key_exchange[i]);
+									}
+									printf("\n");
+									printf("\n");
+								}
+								else {
+									printf("Key Share Entry: Group: Unknown, Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("Group: Unknown (%d)\n", ntohs(ks->group));
+									printf("\n");
+									printf("Key Exchange length: %d\n", ntohs(ks->key_exchange_length));
+									printf("\n");
+									printf("key Exchange: ");
+									for (int i = 0; i < ntohs(ks->key_exchange_length); i++) {
+										printf("%x", ks->key_exchange[i]);
+									}
+									printf("\n");
+									printf("\n");
+								}
 
 								extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 								break;
@@ -2342,7 +3033,10 @@ void print_tls(const unsigned char* pkt_data) {
 								printf("\n");
 								printf("Length: %d\n", ntohs(etl->extensions_length));
 								printf("\n");
-
+								printf("Renegotiation Info extension\n");
+								printf("\n");
+								printf("Renegotiation info extension length: %d\n", ri->renegotiation_info_extension_length);
+								printf("\n");
 								extension_offset += sizeof(etl->extensions_type) + sizeof(etl->extensions_length) + ntohs(etl->extensions_length);
 								break;
 							default:
@@ -2381,33 +3075,265 @@ void print_tls(const unsigned char* pkt_data) {
 					tls_offset += sizeof(tls_header) + hand_offset;
 				}
 				else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == CERTIFICATE) {
+					certificate* cert;
+					cert = (certificate*)(pkt_data + tls_data + tls_offset);
+
+					int signedcertificate_start = tls_data + tls_offset + 4;
+
+
 					printf("Handshake Type: Certificate (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
 					printf("\n");
 					printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
 					printf("\n");
-					/*if (ntohs(hp->client_hello_version) == TLS_1_0) {
-						printf("Version: TLS 1.0 (0x%04x)\n", ntohs(hp->client_hello_version));
-						printf("\n");
+					printf("Certificates Length: %d\n", cert->certificates_length[0] << 16 | cert->certificates_length[1] << 8 | cert->certificates_length[2]);
+					printf("\n");
+					printf("Certificates (%d bytes)\n", cert->certificates_length[0] << 16 | cert->certificates_length[1] << 8 | cert->certificates_length[2]);
+					printf("\n");
+					printf("Certificate Length : %d\n", cert->certificate_length[0] << 16 | cert->certificate_length[1] << 8 | cert->certificate_length[2]);
+					printf("\n");
+					printf("Certificate: ");
+					printf("\n");
+					for (int i = 0; i < (cert->certificate_length[0] << 16 | cert->certificate_length[1] << 8 | cert->certificate_length[2]); i++) {
+						printf("%02x", cert->certificate_data[i]);
 					}
-					else if (ntohs(hp->client_hello_version) == TLS_1_1) {
-						printf("Version: TLS 1.1 (0x%04x)\n", ntohs(hp->client_hello_version));
-						printf("\n");
-					}
-					else if (ntohs(hp->client_hello_version) == TLS_1_2) {
-						printf("Version: TLS 1.2 (0x%04x)\n", ntohs(hp->client_hello_version));
-						printf("\n");
-					}*/
+					printf("\n");
+
 					hand_offset += 4 + (ntohl(hp->handshake_type_leng) & 0xFFFFFF);
 					tls_offset += sizeof(tls_header) + hand_offset;
 				}
 				else if ((ntohl(hp->handshake_type_leng) >> 24 & 0xFF) == SERVER_KEY_EXCHANGE_RESERVED) {
 					server_key_exchange* ske;
 					ske = (server_key_exchange*)(pkt_data + tls_data + tls_offset);
+					ske = (server_key_exchange*)malloc(ske->pubkey_length);
+					ske = (server_key_exchange*)(pkt_data + tls_data + tls_offset);
+					
+					sd->ske = ske;
 
-					application_proto* appli = (application_proto*)malloc(sizeof(TLSHeader) + ntohs(th->tls_length) * sizeof(char));
+					char ske_combined_data[512];
+					memset(ske_combined_data, 0, sizeof(ske_combined_data));
+
 					printf("Handshake Type: Server Key Exchange (%d)\n", ntohl(hp->handshake_type_leng) >> 24 & 0xFF);
 					printf("\n");
 					printf("Length: %d\n", ntohl(hp->handshake_type_leng) & 0xFFFFFF);
+					printf("\n");
+					printf("EC Diffie-Hellman Server Parms\n");
+					printf("\n");
+					if (ske->curve_type == CURVE_UNASSIGNED) {
+						printf("Curve Type: unassigned (0x%02X)\n", ske->curve_type);
+						printf("\n");
+					}
+					else if (ske->curve_type == CURVE_EXPLICIT_PRIME) {
+						printf("Curve Type: explicit_prime (0x%02X)\n", ske->curve_type);
+						printf("\n");
+					}
+					else if (ske->curve_type == CURVE_EXPLICIT_CHAR2) {
+						printf("Curve Type: explicit_char2 (0x%02X)\n", ske->curve_type);
+						printf("\n");
+					}
+					else if (ske->curve_type == CURVE_NAMED_CURVE) {
+						printf("Curve Type: named_curve (0x%02X)\n", ske->curve_type);
+						printf("\n");
+					}
+					else if (ske->curve_type >= 4 && ske->curve_type <= 247) {
+						printf("Curve Type: unassigned (0x%02X)\n", ske->curve_type);
+						printf("\n");
+					}
+					else if (ske->curve_type >= 248 && ske->curve_type <= 255) {
+						printf("Curve Type: reserved_for_private_use (0x%02X)\n", ske->curve_type);
+						printf("\n");
+					}
+					else {
+						printf("Curve Type: unknown (0x%02X)\n", ske->curve_type);
+						printf("\n");
+					}
+					
+					if (ntohs(ske->named_curve) == CURVE_SECP256R1) {
+						printf("Name Curve: spec256r1 (0x%04x)\n", ntohs(ske->named_curve));
+						printf("\n");
+					}
+					else if (ntohs(ske->named_curve) == CURVE_SECP384R1) {
+						printf("Name Curve: spec384r1 (0x%04x)\n", ntohs(ske->named_curve));
+						printf("\n");
+					}
+					else if (ntohs(ske->named_curve) == CURVE_SECP521R1) {
+						printf("Name Curve: spec521r1 (0x%04x)\n", ntohs(ske->named_curve));
+						printf("\n");
+					}
+					else if (ntohs(ske->named_curve) == CURVE_X25519) {
+						printf("Name Curve: x25519 (0x%04x)\n", ntohs(ske->named_curve));
+						printf("\n");
+					}
+					else if (ntohs(ske->named_curve) == CURVE_X448) {
+						printf("Name Curve: x448 (0x%04x)\n", ntohs(ske->named_curve));
+						printf("\n");
+					}
+					else {
+						printf("Name Curve: unknown (0x%04x)\n", ntohs(ske->named_curve));
+						printf("\n");
+					}
+
+					printf("Pubkey Length: %d\n", ske->pubkey_length);
+					printf("\n");
+					printf("Pubkey: ");
+					for (int i = 0; i < ske->pubkey_length; i++) {
+						printf("%02x", ske->pubkey[i]);
+					}
+					for (int i = 0; i < ske->pubkey_length; i++) {
+						sprintf(ske_combined_data + (i * 2), "%02x", ske->pubkey[i]);
+					}
+
+					sd->ske_pubkey = (const unsigned char*)ske_combined_data;
+					printf("\n");
+					printf("\n");
+					
+					signature_algorithm* sial;
+					sial = (signature_algorithm*)(pkt_data + tls_data + tls_offset + sizeof(server_key_exchange) + ske->pubkey_length);
+					sial = (signature_algorithm*)malloc(ntohs(sial->sign_length));
+					sial = (signature_algorithm*)(pkt_data + tls_data + tls_offset + sizeof(server_key_exchange) + ske->pubkey_length);
+
+					if (ntohs(sial->signature_algorithm) == rsa_pkcs1_sha256) {
+						printf("Signature Algorithm: rsa_pkcs1_sha256 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: RSA (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == ecdsa_secp256r1_sha256) {
+						printf("Signature Algorithm: ecdsa_secp256r1_sha256 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == rsa_pkcs1_sha384) {
+						printf("Signature Algorithm: rsa_pkcs1_sha384 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: RSA (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == ecdsa_secp384r1_sha384) {
+						printf("Signature Algorithm: ecdsa_secp384r1_sha384 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == rsa_pkcs1_sha512) {
+						printf("Signature Algorithm: rsa_pkcs1_sha512 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: RSA (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == ecdsa_secp521r1_sha512) {
+						printf("Signature Algorithm: ecdsa_secp521r1_sha512 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == rsa_pss_rsae_sha256) {
+						printf("Signature Algorithm: rsa_pss_rsae_sha256 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ED448 (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == rsa_pss_rsae_sha384) {
+						printf("Signature Algorithm: rsa_pss_rsae_sha384 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ED448 (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == rsa_pss_rsae_sha512) {
+						printf("Signature Algorithm: rsa_pss_rsae_sha512 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ED448 (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == ed25519) {
+						printf("Signature Algorithm: ed25519 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: reserved (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ED448 (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == ed448) {
+						printf("Signature Algorithm: rsa_pkcs1_sha256 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: Intrinsic (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ED448 (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == rsa_pss_pss_sha256) {
+						printf("Signature Algorithm: rsa_pss_pss_sha256 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA256 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ED448 (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == rsa_pss_pss_sha384) {
+						printf("Signature Algorithm: rsa_pss_pss_sha384 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA384 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ED448 (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == rsa_pss_pss_sha512) {
+						printf("Signature Algorithm: rsa_pss_pss_sha512 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA512 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ED448 (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == rsa_pkcs1_sha1) {
+						printf("Signature Algorithm: rsa_pkcs1_sha1 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA1 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: RSA (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else if (ntohs(sial->signature_algorithm) == ecdsa_sha1) {
+						printf("Signature Algorithm: ecdsa_sha1 (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: SHA1 (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: ECDSA (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					else {
+						printf("Signature Algorithm: unknown (0x%04x)\n", ntohs(sial->signature_algorithm));
+						printf("\n");
+						printf("Signature Hash Algorithm Hash: unknown (%d)\n", (ntohs(sial->signature_algorithm) >> 8) & 0xFF);
+						printf("\n");
+						printf("Signature Algorithm: unknown (%d)\n", ntohs(sial->signature_algorithm) & 0xFF);
+						printf("\n");
+					}
+					printf("signature Length: %d\n", ntohs(sial->sign_length));
+					printf("\n");
+					printf("Signature: ");
+					for (int i = 0; i < ntohs(sial->sign_length); i++) {
+						printf("%02x", sial->signature[i]);
+					}
+					printf("\n");
 					printf("\n");
 
 					hand_offset += 4 + (ntohl(hp->handshake_type_leng) & 0xFFFFFF);

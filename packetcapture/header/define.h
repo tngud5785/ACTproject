@@ -82,6 +82,14 @@
 #define HANDSHAKE		   0x16
 #define APPLICATION_DATA   0x17
 
+//tls version
+#define SSL_3_0             0x0300
+#define TLS_1_0             0x0301
+#define TLS_1_1             0x0302
+#define TLS_1_2             0x0303
+#define TLS_1_3             0x0304
+
+
 //tls 1.2 handshake type
 #define HELLO_REQUEST_RESERVED		    0x00
 #define CLIENT_HELLO		            0x01
@@ -199,10 +207,10 @@
 
 //signature algorithms
 #define rsa_pkcs1_sha256        0x0401
-#define rsa_pkcs1_sha384        0x0501
-#define rsa_pkcs1_sha512        0x0601
 #define ecdsa_secp256r1_sha256  0x0403
+#define rsa_pkcs1_sha384        0x0501
 #define ecdsa_secp384r1_sha384  0x0503
+#define rsa_pkcs1_sha512        0x0601
 #define ecdsa_secp521r1_sha512  0x0603
 #define rsa_pss_rsae_sha256     0x0804
 #define rsa_pss_rsae_sha384     0x0805
@@ -243,24 +251,19 @@
 
 
 //server key exchange curve type
-#define CURVE_UNASSIGNED                            0x00
-#define CURVE_EXPLICIT_PRIME                        0x01
-#define CURVE_EXPLICIT_CHAR2                        0x02
-#define CURVE_NAMED_CURVE                           0x03
-#define CURVE_UNASSIGNED_4_247                      0x04
-#define CURVE_RESERVED_FOR_PRIVEATE_USE_248_255     0x05
+#define CURVE_UNASSIGNED                            0
+#define CURVE_EXPLICIT_PRIME                        1
+#define CURVE_EXPLICIT_CHAR2                        2
+#define CURVE_NAMED_CURVE                           3
+#define CURVE_UNASSIGNED_4_247                      4
+#define CURVE_RESERVED_FOR_PRIVATE_USE_248_255     5
 
 //server key exchange ecdhe named curve
-#define CURVE_DEPRECATED1_22            0x0001
 #define CURVE_SECP256R1                 0x0017
 #define CURVE_SECP384R1                 0x0018
 #define CURVE_SECP521R1                 0x0019
 #define CURVE_X25519                    0x001D
 #define CURVE_X448                      0x001E
-#define CURVE_RESERVED_0xFE00           0xFE00
-#define CURVE_RESERVED_0xFEFF           0xFEFF
-#define CURVE_DEPRECATED_0xFF01         0xFF01
-#define CURVE_DEPRECATED_0xFF02         0xFF02
 
 
 //extension
@@ -346,3 +349,18 @@
 #define Reserved_56026          56026
 #define ENCRYPTED_CLIENT_HELLO  65037
 #define RENEGOTIATION_INFO      65281      
+
+//tls ec point formats
+#define UNCOMPRESSED                        0
+#define ANSIX962_COMPRESSED_PRIME           1
+#define ANSIX962_COMPRESSED_CHAR2           2
+#define UNASSIGNED_3to247                   3
+#define RESERVED_FOR_PRIVATE_USE_248to255   248
+
+//tls psk key exchange modes
+#define PSK_KE                                  0
+#define PSK_DHE_KE                              1
+#define UNASSIGNED_2                            2
+#define UNASSIGNED_253                          253
+#define RESERVED_FOR_PRIVATE_USE_254            254
+#define RESERVED_FOR_PRIVATE_USE_255            255

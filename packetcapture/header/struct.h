@@ -67,9 +67,10 @@ typedef struct packet {
 
 #pragma pack(push, 1)
 typedef struct signing_data {
-	client_hello*			ch;
-	server_hello*			sh;
+	const unsigned char*	ch_random;
+	const unsigned char*	sh_random;
 	server_key_exchange*	ske;
+	const unsigned char*	ske_pubkey;
 	certificate*			cert;
 } SigningData;
 #pragma pack(pop)

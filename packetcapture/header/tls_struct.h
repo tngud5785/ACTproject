@@ -32,6 +32,9 @@ typedef struct alert_proto_enc {
 }AlertEnc;
 #pragma pack(pop)
 
+
+
+
 #pragma pack(push, 1)
 typedef struct handshake_proto {
 	TLSHeader		tls_header;
@@ -215,7 +218,7 @@ typedef struct supported_groups {
 typedef struct ec_point_formats {
 	ExtensionsTypeLength	extensions_type_length;
 	u_char					ec_point_formats_length;
-	u_char					ec_point_format;
+	u_char					ec_point_format[];
 } ECPointFormats;
 #pragma pack(pop)
 
@@ -432,7 +435,7 @@ typedef struct early_data{
 #pragma pack(push, 1)
 typedef struct supported_versions {
 	ExtensionsTypeLength	extensions_type_length;
-	u_short					supported_versions_length;
+	u_char					supported_versions_length;
 	u_short					supported_version[];
 } SupportedVersions;
 #pragma pack(pop)
@@ -448,6 +451,8 @@ typedef struct cookie {
 #pragma pack(push, 1)
 typedef struct psk_key_exchange_modes {
 	ExtensionsTypeLength	extensions_type_length;
+	u_char					psk_key_exchange_modes_length;
+	u_char					psk_key_exchange_mode[];
 } PskKeyExchangeModes;
 #pragma pack(pop)
 
@@ -484,16 +489,11 @@ typedef struct signature_algorithms_cert {
 #pragma pack(push, 1)
 typedef struct key_share {
 	ExtensionsTypeLength	extensions_type_length;
+	u_short					Client_key_share_length;
+	u_short					group;
+	u_short					key_exchange_length;
+	u_char					key_exchange[];
 } KeyShare;
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-typedef struct key_share_entry {
-	key_share		key_share;
-	u_short			key_share_group;
-	u_short			key_exchange_length;
-	u_char			key_exchange[];
-} KeyShareEntry;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
@@ -583,13 +583,14 @@ typedef struct encrypted_client_hello_payload{
 
 #pragma pack(push, 1)
 typedef struct new_session_ticket {
-
+	ExtensionsTypeLength	extensions_type_length;
 }NewSessionTicket;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct renegotiation_info {
-	u_char			renegotiation_info_extension;
+	ExtensionsTypeLength	extensions_type_length;
+	u_char					renegotiation_info_extension_length;
 } RenegotiationInfo;
 #pragma pack(pop)
 
@@ -598,35 +599,35 @@ typedef struct renegotiation_info {
 //handshake-certificate
 #pragma pack(push, 1)
 typedef struct certificate {
-	TLSHeader		tls_header;
-
+	Handshake		handshake_header;
+	u_char			certificates_length[3];
+	u_char			certificate_length[3];
+	u_char			certificate_data[];
 }Certificate;
 #pragma pack(pop)
 
-
+//#pragma pack(push, 1)
+//typedef struct signedcertificate {
+//	
+//}Certificate;
+//#pragma pack(pop)
 
 
 
 //handshake-serverkeyexchange
 #pragma pack(push, 1)
 typedef struct server_key_exchange {
-	TLSHeader	tls_header;
-}ServerKeyExchange;
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-typedef struct ec_diffie_hellman_client_params {
+	Handshake		handshake_header;
 	u_char			curve_type;
 	u_short			named_curve;
 	u_char			pubkey_length;
 	u_char			pubkey[];
-}ECDiffieHellmanClientParams;
+}ServerKeyExchange;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct signature_algorithm {
-	u_char			sign_hash_algo_hash;
-	u_char			sign_hash_algo_sign;
+	u_short			signature_algorithm;
 	u_short			sign_length;
 	u_char			signature[];
 }SignatureAlgorithm;
